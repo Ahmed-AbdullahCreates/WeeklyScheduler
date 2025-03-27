@@ -14,14 +14,27 @@ export function generateWeeklyPlanPDF(
 ): Promise<Buffer> {
   return new Promise((resolve, reject) => {
     try {
+      // Validate input data to prevent unexpected errors
+      if (!weeklyPlanData || !weeklyPlanData.weeklyPlan) {
+        throw new Error('Invalid weekly plan data provided');
+      }
+      
+      // Use safe values in case any parameters are undefined or null
+      const safeTeacherName = teacherName || 'Not specified';
+      const safeGradeName = gradeName || 'Not specified';
+      const safeSubjectName = subjectName || 'Not specified';
+      const safeWeekNumber = weekNumber || 0;
+      const safeWeekYear = weekYear || new Date().getFullYear();
+      const safeStartDate = startDate || new Date().toISOString().split('T')[0];
+      
       // Create a PDF document
       const doc = new PDFDocument({ 
         margin: 50,
         size: 'A4',
         info: {
-          Title: `Weekly Plan - ${subjectName} - ${gradeName} - Week ${weekNumber}`,
-          Author: teacherName,
-          Subject: `Weekly Lesson Plan for ${subjectName}`,
+          Title: `Weekly Plan - ${safeSubjectName} - ${safeGradeName} - Week ${safeWeekNumber}`,
+          Author: safeTeacherName,
+          Subject: `Weekly Lesson Plan for ${safeSubjectName}`,
           Keywords: 'weekly plan, lesson plan, school',
           CreationDate: new Date(),
         }
@@ -42,11 +55,11 @@ export function generateWeeklyPlanPDF(
         doc.rect(0, 0, doc.page.width, 5)
            .fill('#3b82f6');
            
-        // Add small title to new pages
+        // Add small title to new pages - use shorter text to avoid overflow issues
         doc.fontSize(14)
            .font('Helvetica-Bold')
            .fillColor('#1e40af')
-           .text(`Weekly Plan - ${gradeName} - ${subjectName}`, 50, 20, { align: 'center' });
+           .text(`${safeGradeName} - ${safeSubjectName}`, 50, 20, { align: 'center' });
            
         // Add footer with styled background
         const footerY = doc.page.height - 50;
@@ -65,11 +78,14 @@ export function generateWeeklyPlanPDF(
            .fontSize(9)
            .text(`Page ${pageNumber}`, doc.page.width - 70, footerY + 15, { align: 'right' });
            
-        // Add footer text to continuation pages
+        // Add footer text to continuation pages (with max width to prevent errors)
         doc.fontSize(10)
            .font('Helvetica')
            .fillColor('#334155')
-           .text('Weekly Planner System for Schools', 50, footerY + 15, { align: 'center' });
+           .text('Weekly Planner System for Schools', 50, footerY + 15, { 
+             align: 'center',
+             width: doc.page.width - 100 // Set max width to avoid overflow
+           });
       });
 
       // Create a buffer to store the PDF
@@ -93,33 +109,33 @@ export function generateWeeklyPlanPDF(
          .text(`Weekly Lesson Plan`, 50, 40, { align: 'center' })
          .moveDown(0.5);
 
-      // Add metadata with styling
+      // Add metadata with styling - using safe values to prevent errors
       doc.fillColor('#334155') // Slate gray text
          .fontSize(14)
          .font('Helvetica-Bold')
          .text(`Teacher:`, 50, 90, { continued: true })
          .font('Helvetica')
-         .text(` ${teacherName}`, { continued: false })
+         .text(` ${safeTeacherName}`, { continued: false })
          
          .font('Helvetica-Bold')
          .text(`Grade:`, 50, doc.y, { continued: true })
          .font('Helvetica')
-         .text(` ${gradeName}`, { continued: false })
+         .text(` ${safeGradeName}`, { continued: false })
          
          .font('Helvetica-Bold')
          .text(`Subject:`, 50, doc.y, { continued: true })
          .font('Helvetica')
-         .text(` ${subjectName}`, { continued: false })
+         .text(` ${safeSubjectName}`, { continued: false })
          
          .font('Helvetica-Bold')
          .text(`Week:`, 50, doc.y, { continued: true })
          .font('Helvetica')
-         .text(` ${weekNumber} (${weekYear})`, { continued: false })
+         .text(` ${safeWeekNumber} (${safeWeekYear})`, { continued: false })
          
          .font('Helvetica-Bold')
          .text(`Start Date:`, 50, doc.y, { continued: true })
          .font('Helvetica')
-         .text(` ${new Date(startDate).toLocaleDateString()}`, { continued: false })
+         .text(` ${new Date(safeStartDate).toLocaleDateString()}`, { continued: false })
          .moveDown(1);
 
       // Add a horizontal line
@@ -162,17 +178,32 @@ export function generateWeeklyPlanPDF(
           doc.rect(50, topicY, doc.page.width - 100, 25)
              .fill('#e0f2fe'); // Light blue background for topic
           
-          // Add topic with better formatting
+          // Add topic with better formatting - check for valid topic content
+          const safeTopic = dailyPlan.topic && !dailyPlan.topic.includes('[plugin:runtime-error-plugin]') 
+            ? dailyPlan.topic 
+            : 'No topic specified';
+            
           doc.fillColor('#0f172a') // Dark text for contrast
              .fontSize(14)
              .font('Helvetica-Bold')
              .text('Topic:', 60, topicY + 5, { continued: true })
              .font('Helvetica')
-             .text(` ${dailyPlan.topic}`, { continued: false })
+             .text(` ${safeTopic}`, { 
+               continued: false,
+               width: doc.page.width - 120 // Constrain width to prevent overflow
+             })
              .moveDown(0.7);
 
           // Add other details with better spacing and formatting
-          if (dailyPlan.booksAndPages) {
+          // Check for valid content (not error messages)
+          const isValidContent = (content: string | null | undefined) => {
+            if (!content) return false;
+            // Skip content that contains error messages
+            if (content.includes('[plugin:runtime-error-plugin]')) return false;
+            return true;
+          };
+          
+          if (isValidContent(dailyPlan.booksAndPages)) {
             const bgY = doc.y;
             doc.rect(70, bgY, doc.page.width - 140, 20).fill('#f8fafc'); // Very light gray background
             
@@ -181,11 +212,14 @@ export function generateWeeklyPlanPDF(
                .font('Helvetica-Bold')
                .text('Books & Pages:', 80, bgY + 4, { continued: true })
                .font('Helvetica')
-               .text(` ${dailyPlan.booksAndPages}`, { continued: false })
+               .text(` ${dailyPlan.booksAndPages}`, { 
+                 continued: false,
+                 width: doc.page.width - 160 // Constrain width to prevent overflow
+               })
                .moveDown(0.5);
           }
 
-          if (dailyPlan.homework) {
+          if (isValidContent(dailyPlan.homework)) {
             const bgY = doc.y;
             doc.rect(70, bgY, doc.page.width - 140, 20).fill('#f0fdf4'); // Very light green background
             
@@ -194,7 +228,10 @@ export function generateWeeklyPlanPDF(
                .font('Helvetica-Bold')
                .text('Homework:', 80, bgY + 4, { continued: true })
                .font('Helvetica')
-               .text(` ${dailyPlan.homework}`, { continued: false })
+               .text(` ${dailyPlan.homework}`, { 
+                 continued: false,
+                 width: doc.page.width - 160 // Constrain width to prevent overflow
+               })
                .moveDown(0.3);
 
             if (dailyPlan.homeworkDueDate) {
@@ -203,14 +240,17 @@ export function generateWeeklyPlanPDF(
                  .fillColor('#166534') // Match homework text color
                  .text('Due:', 100, doc.y, { continued: true })
                  .font('Helvetica')
-                 .text(` ${new Date(dailyPlan.homeworkDueDate).toLocaleDateString()}`, { continued: false })
+                 .text(` ${new Date(dailyPlan.homeworkDueDate).toLocaleDateString()}`, { 
+                   continued: false,
+                   width: doc.page.width - 200 // Constrain width to prevent overflow
+                 })
                  .moveDown(0.5);
             } else {
               doc.moveDown(0.2);
             }
           }
 
-          if (dailyPlan.assignments) {
+          if (isValidContent(dailyPlan.assignments)) {
             const bgY = doc.y;
             doc.rect(70, bgY, doc.page.width - 140, 20).fill('#f9fafb'); // Light gray background
             
@@ -219,11 +259,14 @@ export function generateWeeklyPlanPDF(
                .font('Helvetica-Bold')
                .text('Assignments:', 80, bgY + 4, { continued: true })
                .font('Helvetica')
-               .text(` ${dailyPlan.assignments}`, { continued: false })
+               .text(` ${dailyPlan.assignments}`, { 
+                 continued: false,
+                 width: doc.page.width - 160 // Constrain width to prevent overflow
+               })
                .moveDown(0.5);
           }
 
-          if (dailyPlan.notes) {
+          if (isValidContent(dailyPlan.notes)) {
             const bgY = doc.y;
             doc.rect(70, bgY, doc.page.width - 140, 20).fill('#fff7ed'); // Light orange background
             
@@ -232,7 +275,10 @@ export function generateWeeklyPlanPDF(
                .font('Helvetica-Bold')
                .text('Notes:', 80, bgY + 4, { continued: true })
                .font('Helvetica')
-               .text(` ${dailyPlan.notes}`, { continued: false })
+               .text(` ${dailyPlan.notes}`, { 
+                 continued: false,
+                 width: doc.page.width - 160 // Constrain width to prevent overflow
+               })
                .moveDown(0.5);
           }
         } else {
@@ -258,20 +304,29 @@ export function generateWeeklyPlanPDF(
       doc.rect(0, doc.page.height - 10, doc.page.width, 10)
          .fill('#3b82f6');
       
-      // Footer text
+      // Footer text with width constraints to prevent errors
       doc.fontSize(10)
          .font('Helvetica')
          .fillColor('#334155')
-         .text(`Generated on ${new Date().toLocaleString()}`, 50, footerY, { align: 'center' })
+         .text(`Generated on ${new Date().toLocaleString()}`, 50, footerY, { 
+           align: 'center',
+           width: doc.page.width - 100 // Constrain width
+         })
          .font('Helvetica-Bold')
          .fillColor('#1e40af')
-         .text('Weekly Planner System for Schools', 50, footerY + 15, { align: 'center' });
+         .text('Weekly Planner System for Schools', 50, footerY + 15, { 
+           align: 'center',
+           width: doc.page.width - 100 // Constrain width
+         });
       
-      // Add page number
+      // Add page number with width constraint
       doc.font('Helvetica')
          .fillColor('#475569')
          .fontSize(9)
-         .text(`Page ${pageNumber}`, doc.page.width - 70, footerY + 15, { align: 'right' });
+         .text(`Page ${pageNumber}`, doc.page.width - 150, footerY + 15, { 
+           align: 'right',
+           width: 80 // Constrain width for page number
+         });
 
       // Finalize the PDF
       doc.end();
