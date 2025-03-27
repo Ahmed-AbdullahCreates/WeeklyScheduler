@@ -1,0 +1,93 @@
+Weekly Planner System for Schools
+System Overview
+The Weekly Planner System is a web application for schools, enabling teachers to manage and submit their lesson plans while giving administrators full control over grades, subjects, and weekly planning.
+
+User Roles & Permissions
+1. Admin (Full Control)
+Manages teachers, grades, and subjects.
+
+Assigns teachers to specific grades and subjects.
+
+Views weekly plans for a specific grade and a specific week.
+
+Can activate or deactivate a certain week for planning.
+
+2. Teachers (Regular Users)
+View only the grades assigned to them.
+
+Fill out a weekly plan for their subjects within assigned grades.
+
+Weekly plans contain lesson details from Monday to Friday.
+
+Core System Features
+1. Admin Dashboard
+Displays all grades and their weekly plans.
+
+Allows the admin to select a grade to view its weekly plan.
+
+Admin can filter by:
+
+Date Range (From X to Y)
+
+Week Number (Week X)
+
+Grade
+
+Displays all teacher-submitted plans for that grade and week.
+
+Admin can activate/deactivate a specific week (controls whether teachers can edit the plan for that week).
+
+2. Teacher Dashboard
+Displays grades assigned to the teacher.
+
+Teacher selects a grade → sees their subjects within that grade.
+
+For each subject, they fill in the weekly plan covering Monday to Friday.
+
+Weekly Plan Structure
+Each teacher fills out a weekly plan for each subject in their assigned grades.
+
+Plan Fields (Per Subject)
+Required:
+
+Topic (The main lesson)
+
+Optional:
+
+Books & Pages (References from textbooks)
+
+Homework (Tasks for students)
+
+Homework Due Date (When homework should be submitted)
+
+Assignments (Extra tasks, exercises, or projects)
+
+Notes (Additional comments or instructions)
+
+System Flow
+Admin assigns teachers to grades and subjects.
+
+Admin activates/deactivates weekly planning for a certain week.
+
+Teacher logs in → sees assigned grades.
+
+Teacher selects a grade → views assigned subjects.
+
+Teacher fills in the weekly plan for each subject.
+
+Admin selects a grade and week → views all weekly plans for that grade.
+
+Additional Features
+Data Storage: Weekly plans should be stored efficiently for history tracking.
+
+UI/UX:
+
+Admin should have clear date/week filters.
+
+Teachers should have an intuitive way to input lesson plans.
+
+Permissions:
+
+Teachers cannot access other grades or subjects.
+
+Teachers can only edit plans if the week is activated.

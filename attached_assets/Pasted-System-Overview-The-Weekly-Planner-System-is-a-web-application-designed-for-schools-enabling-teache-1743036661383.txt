@@ -1,0 +1,92 @@
+System Overview
+The Weekly Planner System is a web application designed for schools, enabling teachers to manage their weekly lesson plans efficiently. The system has two user types:
+
+Admin (Manages teachers, grades, and subjects)
+
+Teachers (Regular users who fill in weekly plans for assigned grades and subjects)
+
+User Roles & Permissions
+1. Admin
+Has full access to all grades and subjects.
+
+Assigns teachers to specific grades.
+
+Assigns teachers to specific subjects within those grades.
+
+2. Teachers
+Can only view and manage the grades assigned to them by the admin.
+
+Within an assigned grade, they manage the subjects they are responsible for.
+
+Can have one or multiple subjects in one or multiple grades.
+
+Core Functionality
+1. Dashboard & Navigation
+Admin Dashboard:
+
+View all grades and subjects.
+
+Assign teachers to grades.
+
+Assign teachers to subjects within those grades.
+
+Manage teachers and their assignments.
+
+Teacher Dashboard:
+
+Displays a list of grades assigned to the teacher.
+
+Upon selecting a grade, the teacher sees the subjects they handle.
+
+The teacher fills in the weekly plan for each subject.
+
+2. Weekly Plan Structure
+Each teacher fills a weekly plan for each subject they teach in their assigned grades.
+The weekly plan covers Monday to Friday, and includes:
+
+Required Field:
+Topic (The main lesson for the day)
+
+Optional Fields:
+Books & Pages (References from textbooks)
+
+Homework (Tasks for students)
+
+Homework Due Date (When the homework should be submitted)
+
+Assignments (Additional tasks, projects, or exercises)
+
+Notes (Any extra comments or instructions)
+
+3. Data Structure & Relationships
+Admin → Manages Teachers, Grades, and Subjects
+
+Teacher → Assigned to one or more grades
+
+Teacher → Assigned to one or more subjects within those grades
+
+Each grade → Contains multiple subjects
+
+Each subject → Has a weekly plan structured from Monday to Friday
+
+System Flow
+Admin assigns a teacher to one or more grades and one or more subjects within those grades.
+
+Teacher logs in and sees their assigned grades.
+
+Teacher selects a grade to manage its subjects.
+
+Teacher fills in the weekly plan for each subject they handle.
+
+The weekly plan includes topics, books, homework, assignments, and notes.
+
+Additional Considerations
+Data Storage: Ensure weekly plans are stored efficiently to allow history tracking.
+
+UI/UX:
+
+Teachers should see an intuitive grade and subject selection system.
+
+Admin should have a simple way to assign teachers to grades and subjects.
+
+Permissions: A teacher should only see and edit the grades/subjects assigned to them.
