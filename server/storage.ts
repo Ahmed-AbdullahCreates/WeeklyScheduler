@@ -1,4 +1,4 @@
-import { users, User, InsertUser, Grade, InsertGrade, grades, subjects, InsertSubject, Subject, teacherGrades, TeacherGrade, InsertTeacherGrade, teacherSubjects, TeacherSubject, InsertTeacherSubject, PlanningWeek, planningWeeks, InsertPlanningWeek, WeeklyPlan, weeklyPlans, InsertWeeklyPlan, DailyPlan, dailyPlans, InsertDailyPlan, GradeWithSubjects, TeacherWithAssignments, WeeklyPlanWithDetails, DailyPlanData, WeeklyPlanComplete } from "@shared/schema";
+import { users, User, InsertUser, Grade, InsertGrade, grades, subjects, InsertSubject, Subject, teacherGrades, TeacherGrade, InsertTeacherGrade, teacherSubjects, TeacherSubject, InsertTeacherSubject, PlanningWeek, planningWeeks, InsertPlanningWeek, WeeklyPlan, weeklyPlans, InsertWeeklyPlan, DailyPlan, dailyPlans, InsertDailyPlan, GradeWithSubjects, TeacherWithAssignments, WeeklyPlanWithDetails, DailyPlanData, WeeklyPlanComplete, planHistory, PlanHistory, InsertPlanHistory } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
@@ -89,6 +89,11 @@ export interface IStorage {
   getDailyPlansByWeeklyPlan(weeklyPlanId: number): Promise<DailyPlan[]>;
   updateDailyPlan(id: number, plan: Partial<InsertDailyPlan>): Promise<DailyPlan | undefined>;
   
+  // Plan history
+  addPlanHistory(history: InsertPlanHistory): Promise<PlanHistory>;
+  getPlanHistoryByWeeklyPlanId(weeklyPlanId: number): Promise<PlanHistory[]>;
+  getPlanHistoryByTeacherId(teacherId: number): Promise<PlanHistory[]>;
+  
   // Session store
   sessionStore: session.Store;
 }
@@ -102,6 +107,7 @@ export class MemStorage implements IStorage {
   private planningWeeks: Map<number, PlanningWeek>;
   private weeklyPlans: Map<number, WeeklyPlan>;
   private dailyPlans: Map<number, DailyPlan>;
+  private planHistories: Map<number, PlanHistory>;
   
   private userIdCounter: number;
   private gradeIdCounter: number;
@@ -111,6 +117,7 @@ export class MemStorage implements IStorage {
   private planningWeekIdCounter: number;
   private weeklyPlanIdCounter: number;
   private dailyPlanIdCounter: number;
+  private planHistoryIdCounter: number;
   
   sessionStore: session.Store;
   
@@ -123,6 +130,7 @@ export class MemStorage implements IStorage {
     this.planningWeeks = new Map();
     this.weeklyPlans = new Map();
     this.dailyPlans = new Map();
+    this.planHistories = new Map();
     
     this.userIdCounter = 1;
     this.gradeIdCounter = 1;
@@ -132,6 +140,7 @@ export class MemStorage implements IStorage {
     this.planningWeekIdCounter = 1;
     this.weeklyPlanIdCounter = 1;
     this.dailyPlanIdCounter = 1;
+    this.planHistoryIdCounter = 1;
     
     this.sessionStore = new MemoryStore({
       checkPeriod: 86400000 // 24 hours
@@ -623,6 +632,33 @@ export class MemStorage implements IStorage {
     const updatedPlan = { ...existingPlan, ...plan };
     this.dailyPlans.set(id, updatedPlan);
     return updatedPlan;
+  }
+  
+  // Plan history
+  async addPlanHistory(history: InsertPlanHistory): Promise<PlanHistory> {
+    const id = this.planHistoryIdCounter++;
+    const timestamp = new Date();
+    
+    const planHistory: PlanHistory = {
+      ...history,
+      id,
+      timestamp
+    };
+    
+    this.planHistories.set(id, planHistory);
+    return planHistory;
+  }
+  
+  async getPlanHistoryByWeeklyPlanId(weeklyPlanId: number): Promise<PlanHistory[]> {
+    return Array.from(this.planHistories.values())
+      .filter(history => history.weeklyPlanId === weeklyPlanId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Most recent first
+  }
+  
+  async getPlanHistoryByTeacherId(teacherId: number): Promise<PlanHistory[]> {
+    return Array.from(this.planHistories.values())
+      .filter(history => history.teacherId === teacherId)
+      .sort((a, b) => b.timestamp.getTime() - a.timestamp.getTime()); // Most recent first
   }
 }
 
@@ -1124,6 +1160,28 @@ export class DatabaseStorage implements IStorage {
       .where(eq(dailyPlans.id, id))
       .returning();
     return updated.length ? updated[0] : undefined;
+  }
+  
+  // Plan history
+  async addPlanHistory(history: InsertPlanHistory): Promise<PlanHistory> {
+    const inserted = await this.db.insert(planHistory)
+      .values(history)
+      .returning();
+    return inserted[0];
+  }
+  
+  async getPlanHistoryByWeeklyPlanId(weeklyPlanId: number): Promise<PlanHistory[]> {
+    return await this.db.select()
+      .from(planHistory)
+      .where(eq(planHistory.weeklyPlanId, weeklyPlanId))
+      .orderBy(desc(planHistory.timestamp));
+  }
+  
+  async getPlanHistoryByTeacherId(teacherId: number): Promise<PlanHistory[]> {
+    return await this.db.select()
+      .from(planHistory)
+      .where(eq(planHistory.teacherId, teacherId))
+      .orderBy(desc(planHistory.timestamp));
   }
 }
 
