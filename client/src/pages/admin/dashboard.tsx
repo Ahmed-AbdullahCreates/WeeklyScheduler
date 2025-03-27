@@ -4,6 +4,7 @@ import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 import { 
   CalendarIcon, 
   School, 
@@ -120,43 +121,43 @@ export default function AdminDashboard() {
     <PageWrapper title="Dashboard">
       {/* Stats Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 mb-8">
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg transition-all duration-300 border-t-4 border-t-primary overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="bg-blue-100 p-3 rounded-lg mr-4">
-                <Users className="h-6 w-6 text-primary" />
+              <div className="bg-gradient-to-br from-blue-500 to-indigo-600 p-3 rounded-lg mr-4 shadow-md">
+                <Users className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="text-neutral-500 text-sm font-medium">Total Teachers</h3>
-                <p className="text-2xl font-semibold text-neutral-800">{teachers.length}</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-blue-600 to-indigo-600 bg-clip-text text-transparent">{teachers.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg transition-all duration-300 border-t-4 border-t-green-500 overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="bg-green-100 p-3 rounded-lg mr-4">
-                <School className="h-6 w-6 text-secondary" />
+              <div className="bg-gradient-to-br from-green-500 to-emerald-600 p-3 rounded-lg mr-4 shadow-md">
+                <School className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="text-neutral-500 text-sm font-medium">Total Grades</h3>
-                <p className="text-2xl font-semibold text-neutral-800">{grades.length}</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent">{grades.length}</p>
               </div>
             </div>
           </CardContent>
         </Card>
         
-        <Card className="hover:shadow-md transition-shadow">
+        <Card className="hover:shadow-lg transition-all duration-300 border-t-4 border-t-amber-500 overflow-hidden">
           <CardContent className="p-6">
             <div className="flex items-center">
-              <div className="bg-amber-100 p-3 rounded-lg mr-4">
-                <Book className="h-6 w-6 text-amber-600" />
+              <div className="bg-gradient-to-br from-amber-500 to-orange-600 p-3 rounded-lg mr-4 shadow-md">
+                <Book className="h-6 w-6 text-white" />
               </div>
               <div>
                 <h3 className="text-neutral-500 text-sm font-medium">Total Subjects</h3>
-                <p className="text-2xl font-semibold text-neutral-800">{subjectCount}</p>
+                <p className="text-2xl font-bold bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">{subjectCount}</p>
               </div>
             </div>
           </CardContent>
@@ -164,9 +165,9 @@ export default function AdminDashboard() {
       </div>
       
       {/* View Weekly Plans */}
-      <Card className="mb-8 hover:shadow-md transition-shadow">
+      <Card className="mb-8 hover:shadow-lg transition-all duration-300 border-l-4 border-l-indigo-500 overflow-hidden">
         <CardContent className="p-6">
-          <h3 className="text-lg font-medium text-neutral-800 mb-4">View Weekly Plans</h3>
+          <h3 className="text-lg font-bold text-neutral-800 mb-4 bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">View Weekly Plans</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div>
               <Label htmlFor="grade-select">Grade</Label>
@@ -205,6 +206,7 @@ export default function AdminDashboard() {
                 className="w-full" 
                 disabled={!selectedGrade || !selectedWeek || selectedGrade === "placeholder" || selectedWeek === "placeholder"}
                 onClick={() => {
+                  // Use Link's navigate function instead of direct window.location
                   window.location.href = `/weekly-plans/${selectedGrade}/${selectedWeek}`;
                 }}
               >
@@ -216,10 +218,10 @@ export default function AdminDashboard() {
       </Card>
       
       {/* Active Planning Weeks */}
-      <Card className="mb-8 hover:shadow-md transition-shadow">
+      <Card className="mb-8 hover:shadow-lg transition-all duration-300 border-l-4 border-l-green-500 overflow-hidden">
         <CardContent className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-neutral-800">Active Planning Weeks</h3>
+            <h3 className="text-lg font-bold text-neutral-800 bg-gradient-to-r from-green-600 to-teal-600 bg-clip-text text-transparent">Active Planning Weeks</h3>
             <Dialog open={newWeekDialogOpen} onOpenChange={setNewWeekDialogOpen}>
               <DialogTrigger asChild>
                 <Button size="sm" className="flex items-center">
@@ -302,28 +304,39 @@ export default function AdminDashboard() {
                         {formatDate(new Date(week.startDate))} - {formatDate(new Date(week.endDate))}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={week.isActive ? "default" : "outline"} className={week.isActive ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}>
-                          {week.isActive ? "Active" : "Inactive"}
-                        </Badge>
+                        {week.isActive ? (
+                          <Badge className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0 px-3 py-1 text-xs font-medium">
+                            Active
+                          </Badge>
+                        ) : (
+                          <Badge variant="outline" className="text-gray-500 px-3 py-1 text-xs font-medium">
+                            Inactive
+                          </Badge>
+                        )}
                       </TableCell>
                       <TableCell className="space-x-2 flex">
                         <Button 
-                          variant="ghost" 
-                          className={week.isActive ? "text-destructive hover:text-destructive/90" : "text-primary hover:text-primary/90"}
+                          variant={week.isActive ? "outline" : "default"} 
+                          size="sm"
+                          className={week.isActive 
+                            ? "text-red-500 border-red-200 hover:bg-red-50 hover:text-red-600 hover:border-red-300" 
+                            : "bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0"
+                          }
                           onClick={() => toggleWeekStatus.mutate(week.id)}
                         >
                           {week.isActive ? "Deactivate" : "Activate"}
                         </Button>
                         
                         <Button
-                          variant="ghost"
-                          className="text-destructive hover:text-destructive/90 ml-2"
+                          variant="outline"
+                          size="sm"
+                          className="text-destructive hover:bg-red-50 hover:text-destructive/90 ml-2 border-red-200 hover:border-red-300"
                           onClick={() => {
                             setWeekToDelete(week.id);
                             setConfirmDeleteOpen(true);
                           }}
                         >
-                          <Trash2 className="h-4 w-4" />
+                          <Trash2 className="h-4 w-4 mr-1" /> Delete
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -336,12 +349,12 @@ export default function AdminDashboard() {
       </Card>
       
       {/* Recent Teacher Assignments */}
-      <Card className="hover:shadow-md transition-shadow">
+      <Card className="hover:shadow-lg transition-all duration-300 border-l-4 border-l-amber-500 overflow-hidden">
         <CardContent className="p-6">
           <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-neutral-800">Recent Teacher Assignments</h3>
+            <h3 className="text-lg font-bold text-neutral-800 bg-gradient-to-r from-amber-600 to-orange-600 bg-clip-text text-transparent">Recent Teacher Assignments</h3>
             <Button variant="link" size="sm" className="text-primary" asChild>
-              <a href="/teachers">View All</a>
+              <Link to="/teachers">View All</Link>
             </Button>
           </div>
           
@@ -370,7 +383,7 @@ export default function AdminDashboard() {
                       <TableCell>{assignment.gradeName}</TableCell>
                       <TableCell>
                         {assignment.type === 'subject' ? assignment.subjectName : 
-                          <Badge variant="outline" className="bg-blue-50 text-blue-800">
+                          <Badge className="bg-gradient-to-r from-blue-500 to-indigo-600 hover:from-blue-600 hover:to-indigo-700 text-white border-0 px-3 py-1 text-xs font-medium">
                             Grade Assignment
                           </Badge>
                         }
