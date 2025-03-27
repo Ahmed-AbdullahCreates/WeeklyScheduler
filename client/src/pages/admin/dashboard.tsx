@@ -85,39 +85,7 @@ export default function AdminDashboard() {
   
   // Get recent teacher assignments
   const { data: recentAssignments = [] } = useQuery<any[]>({
-    queryKey: ["/api/recent-assignments"],
-    queryFn: async () => {
-      // This is a mock for now, in a real application this would be fetched from backend
-      return [
-        {
-          teacherId: 1,
-          teacherName: "Sarah Johnson",
-          gradeId: 3,
-          gradeName: "Grade 3",
-          subjectId: 1,
-          subjectName: "Mathematics",
-          assignedDate: "2023-09-05"
-        },
-        {
-          teacherId: 2,
-          teacherName: "Michael Brown",
-          gradeId: 5,
-          gradeName: "Grade 5",
-          subjectId: 2,
-          subjectName: "Science",
-          assignedDate: "2023-09-04"
-        },
-        {
-          teacherId: 3,
-          teacherName: "Jennifer Davis",
-          gradeId: 2,
-          gradeName: "Grade 2",
-          subjectId: 3,
-          subjectName: "English",
-          assignedDate: "2023-09-02"
-        }
-      ];
-    }
+    queryKey: ["/api/recent-assignments"]
   });
   
   return (
@@ -358,7 +326,13 @@ export default function AdminDashboard() {
                     <TableRow key={index}>
                       <TableCell>{assignment.teacherName}</TableCell>
                       <TableCell>{assignment.gradeName}</TableCell>
-                      <TableCell>{assignment.subjectName}</TableCell>
+                      <TableCell>
+                        {assignment.type === 'subject' ? assignment.subjectName : 
+                          <Badge variant="outline" className="bg-blue-50 text-blue-800">
+                            Grade Assignment
+                          </Badge>
+                        }
+                      </TableCell>
                       <TableCell>{assignment.assignedDate}</TableCell>
                     </TableRow>
                   ))}

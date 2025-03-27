@@ -261,9 +261,25 @@ export default function AdminTeachers() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {/* This would show assigned grades in real implementation */}
-                    <Badge variant="outline" className="mr-1">3</Badge>
-                    <Badge variant="outline" className="mr-1">4</Badge>
+                    {/* Fetch assigned grades for each teacher */}
+                    <div className="flex flex-wrap gap-1">
+                      {teacher.id === selectedTeacher?.id && teacherGrades.map(grade => (
+                        <Badge key={grade.id} variant="outline" className="mr-1">{grade.name}</Badge>
+                      ))}
+                      {teacher.id !== selectedTeacher?.id && (
+                        <Button 
+                          variant="ghost" 
+                          size="sm" 
+                          className="h-6 text-xs"
+                          onClick={() => {
+                            setSelectedTeacher(teacher);
+                            // This triggers the API call to fetch teacher grades
+                          }}
+                        >
+                          View Assignments
+                        </Button>
+                      )}
+                    </div>
                   </TableCell>
                   <TableCell>
                     <div className="flex space-x-2">

@@ -440,6 +440,17 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(teacherData);
   });
   
+  // Recent teacher assignments
+  app.get("/api/recent-assignments", isAdmin, async (req, res) => {
+    try {
+      // Get 5 most recent teacher-grade assignments
+      const recentAssignments = await storage.getRecentTeacherAssignments();
+      res.json(recentAssignments);
+    } catch (error) {
+      res.status(500).json({ message: "Error retrieving recent assignments", error });
+    }
+  });
+  
   const httpServer = createServer(app);
   return httpServer;
 }

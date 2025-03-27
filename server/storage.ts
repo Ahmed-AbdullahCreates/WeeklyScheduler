@@ -16,6 +16,18 @@ const pool = new Pool({
 const PostgresSessionStore = connectPgSimple(session);
 const MemoryStore = createMemoryStore(session);
 
+// Define a type for recent assignments
+export type RecentAssignment = {
+  teacherId: number;
+  teacherName: string;
+  gradeId: number;
+  gradeName: string;
+  subjectId?: number;
+  subjectName?: string;
+  assignedDate: string;
+  type: 'grade' | 'subject';
+};
+
 export interface IStorage {
   // User management
   getUser(id: number): Promise<User | undefined>;
@@ -43,6 +55,7 @@ export interface IStorage {
   getTeacherGrades(teacherId: number): Promise<Grade[]>;
   removeTeacherFromGrade(teacherId: number, gradeId: number): Promise<boolean>;
   getTeachersForGrade(gradeId: number): Promise<User[]>;
+  getRecentTeacherAssignments(): Promise<RecentAssignment[]>;
   
   // Teacher-Subject assignments
   assignTeacherToSubject(teacherSubject: InsertTeacherSubject): Promise<TeacherSubject>;
@@ -257,6 +270,61 @@ export class MemStorage implements IStorage {
     
     return teacherIds.map(id => this.users.get(id)).filter(Boolean) as User[];
   }
+
+  async getRecentTeacherAssignments(): Promise<RecentAssignment[]> {
+    const recentGradeAssignments = Array.from(this.teacherGrades.values())
+      .sort((a, b) => b.id - a.id) // Sort by id descending to get most recent
+      .slice(0, 3) // Limit to 3 most recent
+      .map(async (tg): Promise<RecentAssignment> => {
+        const teacher = await this.getUser(tg.teacherId);
+        const grade = await this.getGradeById(tg.gradeId);
+        
+        if (!teacher || !grade) {
+          throw new Error("Missing teacher or grade data");
+        }
+        
+        return {
+          teacherId: tg.teacherId,
+          teacherName: teacher.fullName,
+          gradeId: tg.gradeId,
+          gradeName: grade.name,
+          assignedDate: new Date().toISOString().split('T')[0], // Current date as YYYY-MM-DD
+          type: 'grade'
+        };
+      });
+    
+    const recentSubjectAssignments = Array.from(this.teacherSubjects.values())
+      .sort((a, b) => b.id - a.id) // Sort by id descending to get most recent
+      .slice(0, 3) // Limit to 3 most recent
+      .map(async (ts): Promise<RecentAssignment> => {
+        const teacher = await this.getUser(ts.teacherId);
+        const grade = await this.getGradeById(ts.gradeId);
+        const subject = await this.getSubjectById(ts.subjectId);
+        
+        if (!teacher || !grade || !subject) {
+          throw new Error("Missing teacher, grade or subject data");
+        }
+        
+        return {
+          teacherId: ts.teacherId,
+          teacherName: teacher.fullName,
+          gradeId: ts.gradeId,
+          gradeName: grade.name,
+          subjectId: ts.subjectId,
+          subjectName: subject.name,
+          assignedDate: new Date().toISOString().split('T')[0], // Current date as YYYY-MM-DD
+          type: 'subject'
+        };
+      });
+    
+    // Combine and sort by most recent
+    const combinedAssignments = await Promise.all([
+      ...recentGradeAssignments,
+      ...recentSubjectAssignments
+    ]);
+    
+    return combinedAssignments.slice(0, 5); // Return up to 5 most recent assignments
+  }
   
   // Teacher-Subject assignments
   async assignTeacherToSubject(teacherSubject: InsertTeacherSubject): Promise<TeacherSubject> {
@@ -374,7 +442,7 @@ export class MemStorage implements IStorage {
     const plans = Array.from(this.weeklyPlans.values())
       .filter(plan => plan.gradeId === gradeId && plan.weekId === weekId);
     
-    return Promise.all(plans.map(async plan => {
+    return Promise.all(plans.map(async (plan: WeeklyPlan) => {
       const teacher = await this.getUser(plan.teacherId);
       const grade = await this.getGradeById(plan.gradeId);
       const subject = await this.getSubjectById(plan.subjectId);
@@ -617,6 +685,66 @@ export class DatabaseStorage implements IStorage {
 
     return assignments.map((a: any) => a.teacher);
   }
+  
+  async getRecentTeacherAssignments(): Promise<RecentAssignment[]> {
+    // Get recent grade assignments
+    const recentGradeAssignments = await this.db.select({
+      id: teacherGrades.id,
+      teacherId: teacherGrades.teacherId,
+      teacherName: users.fullName,
+      gradeId: teacherGrades.gradeId,
+      gradeName: grades.name
+    })
+    .from(teacherGrades)
+    .innerJoin(users, eq(teacherGrades.teacherId, users.id))
+    .innerJoin(grades, eq(teacherGrades.gradeId, grades.id))
+    .orderBy(desc(teacherGrades.id))
+    .limit(3);
+    
+    // Get recent subject assignments
+    const recentSubjectAssignments = await this.db.select({
+      id: teacherSubjects.id,
+      teacherId: teacherSubjects.teacherId,
+      teacherName: users.fullName,
+      gradeId: teacherSubjects.gradeId,
+      gradeName: grades.name,
+      subjectId: teacherSubjects.subjectId,
+      subjectName: subjects.name
+    })
+    .from(teacherSubjects)
+    .innerJoin(users, eq(teacherSubjects.teacherId, users.id))
+    .innerJoin(grades, eq(teacherSubjects.gradeId, grades.id))
+    .innerJoin(subjects, eq(teacherSubjects.subjectId, subjects.id))
+    .orderBy(desc(teacherSubjects.id))
+    .limit(3);
+    
+    // Transform grade assignments to RecentAssignment format
+    const gradeAssignments = recentGradeAssignments.map((assignment: any) => ({
+      teacherId: assignment.teacherId,
+      teacherName: assignment.teacherName,
+      gradeId: assignment.gradeId,
+      gradeName: assignment.gradeName,
+      assignedDate: new Date().toISOString().split('T')[0], // Current date as YYYY-MM-DD
+      type: 'grade' as const
+    }));
+    
+    // Transform subject assignments to RecentAssignment format
+    const subjectAssignments = recentSubjectAssignments.map((assignment: any) => ({
+      teacherId: assignment.teacherId,
+      teacherName: assignment.teacherName,
+      gradeId: assignment.gradeId,
+      gradeName: assignment.gradeName,
+      subjectId: assignment.subjectId,
+      subjectName: assignment.subjectName,
+      assignedDate: new Date().toISOString().split('T')[0], // Current date as YYYY-MM-DD
+      type: 'subject' as const
+    }));
+    
+    // Combine and return up to 5 most recent assignments
+    return [...gradeAssignments, ...subjectAssignments]
+      .sort((a, b) => new Date(b.assignedDate).getTime() - new Date(a.assignedDate).getTime())
+      .slice(0, 5);
+  }
 
   // Teacher-Subject assignments
   async assignTeacherToSubject(teacherSubject: InsertTeacherSubject): Promise<TeacherSubject> {
@@ -748,7 +876,7 @@ export class DatabaseStorage implements IStorage {
         eq(weeklyPlans.weekId, weekId)
       ));
     
-    return Promise.all(plans.map(async plan => {
+    return Promise.all(plans.map(async (plan: WeeklyPlan) => {
       const teacher = await this.getUser(plan.teacherId);
       const grade = await this.getGradeById(plan.gradeId);
       const subject = await this.getSubjectById(plan.subjectId);
@@ -832,7 +960,7 @@ export class DatabaseStorage implements IStorage {
 
   async updateDailyPlan(id: number, plan: Partial<InsertDailyPlan>): Promise<DailyPlan | undefined> {
     const updated = await this.db.update(dailyPlans)
-      .set(plan)
+      .set(plan as any) // Type assertion to avoid TypeScript error
       .where(eq(dailyPlans.id, id))
       .returning();
     return updated.length ? updated[0] : undefined;
