@@ -192,27 +192,7 @@ export default function AdminTeachers() {
     },
   });
   
-  // Update user role
-  const updateUserRole = useMutation({
-    mutationFn: async ({ userId, isAdmin }: { userId: number, isAdmin: boolean }) => {
-      const res = await apiRequest("PATCH", `/api/users/${userId}/role`, { isAdmin });
-      return await res.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Success",
-        description: "User role updated successfully",
-      });
-      queryClient.invalidateQueries({ queryKey: ["/api/teachers"] });
-    },
-    onError: (error) => {
-      toast({
-        title: "Error",
-        description: error.message,
-        variant: "destructive",
-      });
-    },
-  });
+  // User role mutation removed as requested
   
   // Delete user
   const deleteUser = useMutation({
@@ -489,28 +469,6 @@ export default function AdminTeachers() {
                         <Plus className="h-3.5 w-3.5 mr-1" />
                         Subject
                       </Button>
-                      
-                      {/* Toggle Admin Status */}
-                      {teacher.id !== currentUser?.id && (
-                        <Button
-                          variant={teacher.isAdmin ? "destructive" : "default"}
-                          size="sm"
-                          onClick={() => {
-                            updateUserRole.mutate({
-                              userId: teacher.id,
-                              isAdmin: !teacher.isAdmin
-                            });
-                          }}
-                          disabled={updateUserRole.isPending}
-                          title={teacher.isAdmin ? "Remove admin rights" : "Make admin"}
-                        >
-                          {teacher.isAdmin ? (
-                            <ShieldOff className="h-3.5 w-3.5" />
-                          ) : (
-                            <ShieldCheck className="h-3.5 w-3.5" />
-                          )}
-                        </Button>
-                      )}
                       
                       {/* Delete User */}
                       {teacher.id !== currentUser?.id && (
