@@ -385,7 +385,21 @@ export default function CalendarView({ isAdmin = false }: CalendarViewProps) {
                                         target="_blank" 
                                         rel="noopener noreferrer"
                                       >
-                                        <Download className="h-3 w-3 mr-1" /> Export PDF
+                                        <Download className="h-3 w-3 mr-1" /> PDF
+                                      </a>
+                                    </Button>
+                                    
+                                    <Button 
+                                      className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
+                                      size="sm" 
+                                      asChild
+                                    >
+                                      <a 
+                                        href={`/api/weekly-plans/${plan.id}/export-excel`} 
+                                        target="_blank" 
+                                        rel="noopener noreferrer"
+                                      >
+                                        <Download className="h-3 w-3 mr-1" /> Excel
                                       </a>
                                     </Button>
                                     

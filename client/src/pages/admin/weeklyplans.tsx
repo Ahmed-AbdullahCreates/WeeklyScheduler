@@ -168,13 +168,22 @@ export default function AdminWeeklyPlans() {
                           </p>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Button 
-                            variant="secondary" 
-                            size="sm"
-                            onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
-                          >
-                            <Download className="h-4 w-4 mr-1" /> Export PDF
-                          </Button>
+                          <div className="flex gap-2">
+                            <Button 
+                              className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0"
+                              size="sm"
+                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                            >
+                              <Download className="h-4 w-4 mr-1" /> PDF
+                            </Button>
+                            <Button 
+                              className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
+                              size="sm"
+                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-excel`, '_blank')}
+                            >
+                              <Download className="h-4 w-4 mr-1" /> Excel
+                            </Button>
+                          </div>
                           <Badge variant="outline">
                             Created: {formatDate(new Date(plan.createdAt))}
                           </Badge>
