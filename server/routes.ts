@@ -5,6 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import multer from "multer";
 import { parseUsersCsv, processUserImport } from "./utils/csv-import";
+import { generateWeeklyPlanPDF } from "./utils/pdf-generator";
 import {
   insertGradeSchema,
   insertSubjectSchema,
@@ -614,6 +615,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
       res.json(userWithoutPassword);
     } catch (error) {
       res.status(500).json({ message: "Error updating user profile", error });
+    }
+  });
+  
+  // Export weekly plan to PDF
+  app.get("/api/weekly-plans/:id/export-pdf", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Get the complete weekly plan data
+      const planComplete = await storage.getWeeklyPlanComplete(id);
+      if (!planComplete) {
+        return res.status(404).json({ message: "Weekly plan not found" });
+      }
+      
+      // Check permission
+      const user = req.user as User;
+      if (!user.isAdmin && planComplete.weeklyPlan.teacherId !== user.id) {
+        return res.status(403).json({ message: "You don't have access to this plan" });
+      }
+      
+      // Get additional data for the PDF
+      const weekDetails = await storage.getPlanningWeekById(planComplete.weeklyPlan.weekId);
+      const grade = await storage.getGradeById(planComplete.weeklyPlan.gradeId);
+      const subject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
+      const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
+      
+      if (!weekDetails || !grade || !subject || !teacher) {
+        return res.status(500).json({ message: "Failed to retrieve required data for PDF generation" });
+      }
+      
+      // Generate the PDF
+      const pdfBuffer = await generateWeeklyPlanPDF(
+        planComplete,
+        teacher.fullName,
+        grade.name,
+        subject.name,
+        weekDetails.weekNumber,
+        weekDetails.year,
+        weekDetails.startDate
+      );
+      
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.pdf`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Send the PDF
+      res.send(pdfBuffer);
+    } catch (error) {
+      console.error("Error exporting weekly plan:", error);
+      res.status(500).json({ message: "Error exporting weekly plan", error: (error as Error).message });
     }
   });
   

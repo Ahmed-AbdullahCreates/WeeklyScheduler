@@ -18,7 +18,7 @@ import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
-import { CalendarIcon, FileText, Search } from "lucide-react";
+import { CalendarIcon, Download, FileText, Search } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
 
 export default function AdminWeeklyPlans() {
@@ -167,9 +167,18 @@ export default function AdminWeeklyPlans() {
                             Teacher: {plan.teacher.fullName}
                           </p>
                         </div>
-                        <Badge variant="outline">
-                          Created: {formatDate(new Date(plan.createdAt))}
-                        </Badge>
+                        <div className="flex items-center gap-3">
+                          <Button 
+                            variant="secondary" 
+                            size="sm"
+                            onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                          >
+                            <Download className="h-4 w-4 mr-1" /> Export PDF
+                          </Button>
+                          <Badge variant="outline">
+                            Created: {formatDate(new Date(plan.createdAt))}
+                          </Badge>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>

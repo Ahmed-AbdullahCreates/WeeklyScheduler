@@ -11,9 +11,10 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Label } from "@/components/ui/label";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
-import { Calendar, Edit, Eye, FileText, Search } from "lucide-react";
+import { Calendar, Download, Edit, Eye, FileText, Search } from "lucide-react";
 import { Link } from "wouter";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useToast } from "@/hooks/use-toast";
 
 export default function TeacherWeeklyPlans() {
   const { user } = useAuth();
@@ -170,6 +171,13 @@ export default function TeacherWeeklyPlans() {
                       </TableCell>
                       <TableCell className="text-right">
                         <div className="flex justify-end space-x-2">
+                          <Button 
+                            variant="secondary" 
+                            size="sm"
+                            onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                          >
+                            <Download className="h-4 w-4 mr-1" /> PDF
+                          </Button>
                           <Button variant="outline" size="sm" asChild disabled={!planningWeeks.find(w => w.id === plan.weekId)?.isActive}>
                             <Link href={`/plan-editor/${plan.id}`}>
                               <Edit className="h-4 w-4 mr-1" /> Edit
@@ -240,11 +248,20 @@ export default function TeacherWeeklyPlans() {
                             Created: {formatDate(new Date(plan.createdAt))}
                           </p>
                         </div>
-                        <Button variant="outline" size="sm" asChild disabled={!plan.week.isActive}>
-                          <Link href={`/plan-editor/${plan.id}`}>
-                            <Edit className="h-4 w-4 mr-1" /> Edit Plan
-                          </Link>
-                        </Button>
+                        <div className="flex gap-2">
+                          <Button 
+                            variant="secondary" 
+                            size="sm" 
+                            onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                          >
+                            <Download className="h-4 w-4 mr-1" /> Export PDF
+                          </Button>
+                          <Button variant="outline" size="sm" asChild disabled={!plan.week.isActive}>
+                            <Link href={`/plan-editor/${plan.id}`}>
+                              <Edit className="h-4 w-4 mr-1" /> Edit Plan
+                            </Link>
+                          </Button>
+                        </div>
                       </div>
                     </CardHeader>
                     <CardContent>
