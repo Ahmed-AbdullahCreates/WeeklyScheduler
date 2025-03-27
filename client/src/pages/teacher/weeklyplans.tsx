@@ -125,14 +125,19 @@ export default function TeacherWeeklyPlans() {
       </Card>
       
       {/* Weekly Plans Overview */}
-      <Card className="mb-8">
-        <CardHeader>
-          <CardTitle className="text-lg">Recent Weekly Plans</CardTitle>
+      <Card className="mb-8 shadow-md hover:shadow-lg transition-shadow">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
+          <CardTitle className="text-lg flex items-center">
+            <Calendar className="h-5 w-5 mr-2 text-primary" />
+            <span className="bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text font-semibold">
+              Recent Weekly Plans
+            </span>
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="p-6">
           {teacherPlans.length === 0 ? (
-            <Alert>
-              <AlertTitle>No plans yet</AlertTitle>
+            <Alert className="bg-neutral-50 border-primary/20">
+              <AlertTitle className="font-semibold">No plans yet</AlertTitle>
               <AlertDescription>
                 You haven't created any weekly plans yet. Use the "Create Plan" button to get started.
               </AlertDescription>
@@ -141,59 +146,100 @@ export default function TeacherWeeklyPlans() {
             <div className="overflow-x-auto">
               <Table>
                 <TableHeader>
-                  <TableRow>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Week</TableHead>
-                    <TableHead>Status</TableHead>
-                    <TableHead className="text-right">Actions</TableHead>
+                  <TableRow className="bg-muted/30 hover:bg-muted/40">
+                    <TableHead className="font-semibold">Grade</TableHead>
+                    <TableHead className="font-semibold">Subject</TableHead>
+                    <TableHead className="font-semibold">Week</TableHead>
+                    <TableHead className="font-semibold">Status</TableHead>
+                    <TableHead className="text-right font-semibold">Actions</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
-                  {teacherPlans.slice(0, 10).map(plan => (
-                    <TableRow key={plan.id}>
-                      <TableCell>
-                        {teacherData?.grades.find(g => g.id === plan.gradeId)?.name || "Unknown"}
-                      </TableCell>
-                      <TableCell>
-                        {teacherData?.subjects[plan.gradeId]?.find(s => s.id === plan.subjectId)?.name || "Unknown"}
-                      </TableCell>
-                      <TableCell>
-                        <div className="flex items-center">
-                          <Calendar className="h-4 w-4 mr-1 text-neutral-500" />
-                          Week {planningWeeks.find(w => w.id === plan.weekId)?.weekNumber || "Unknown"}
-                        </div>
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant={planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "default" : "outline"} className={planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}>
-                          {planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "Active" : "Closed"}
-                        </Badge>
-                      </TableCell>
-                      <TableCell className="text-right">
-                        <div className="flex justify-end space-x-2">
-                          <Button 
-                            variant="secondary" 
-                            size="sm"
-                            onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                  {teacherPlans.slice(0, 10).map((plan, index) => {
+                    const weekData = planningWeeks.find(w => w.id === plan.weekId);
+                    const isActive = weekData?.isActive;
+                    
+                    return (
+                      <TableRow 
+                        key={plan.id} 
+                        className={index % 2 === 0 ? "bg-white" : "bg-primary/5"}
+                      >
+                        <TableCell className="font-medium">
+                          {teacherData?.grades.find(g => g.id === plan.gradeId)?.name || "Unknown"}
+                        </TableCell>
+                        <TableCell>
+                          <span className={isActive ? "text-primary font-medium" : ""}>
+                            {teacherData?.subjects[plan.gradeId]?.find(s => s.id === plan.subjectId)?.name || "Unknown"}
+                          </span>
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center">
+                            <Calendar className={`h-4 w-4 mr-1 ${isActive ? "text-primary" : "text-neutral-500"}`} />
+                            <span>
+                              Week {weekData?.weekNumber || "Unknown"}
+                              {weekData && (
+                                <span className="text-xs text-neutral-500 block">
+                                  {formatDate(new Date(weekData.startDate))}
+                                </span>
+                              )}
+                            </span>
+                          </div>
+                        </TableCell>
+                        <TableCell>
+                          <Badge 
+                            variant={isActive ? "default" : "outline"} 
+                            className={isActive 
+                              ? "bg-green-100 text-green-800 hover:bg-green-200 font-medium" 
+                              : "bg-neutral-100 text-neutral-800 hover:bg-neutral-200"}
                           >
-                            <Download className="h-4 w-4 mr-1" /> PDF
-                          </Button>
-                          <Button variant="outline" size="sm" asChild disabled={!planningWeeks.find(w => w.id === plan.weekId)?.isActive}>
-                            <Link href={`/plan-editor/${plan.id}`}>
-                              <Edit className="h-4 w-4 mr-1" /> Edit
-                            </Link>
-                          </Button>
-                          <Button variant="outline" size="sm" asChild>
-                            <Link href={`#plan-${plan.id}`}>
-                              <Eye className="h-4 w-4 mr-1" /> View
-                            </Link>
-                          </Button>
-                        </div>
-                      </TableCell>
-                    </TableRow>
-                  ))}
+                            {isActive ? "Active" : "Closed"}
+                          </Badge>
+                        </TableCell>
+                        <TableCell className="text-right">
+                          <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="secondary" 
+                              size="sm"
+                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                              className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-white"
+                            >
+                              <Download className="h-4 w-4 mr-1" /> PDF
+                            </Button>
+                            <Button 
+                              variant={isActive ? "outline" : "ghost"} 
+                              size="sm" 
+                              asChild 
+                              disabled={!isActive}
+                              className={isActive ? "border-primary text-primary hover:bg-primary/10" : "opacity-50"}
+                            >
+                              <Link href={`/plan-editor/${plan.id}`}>
+                                <Edit className="h-4 w-4 mr-1" /> Edit
+                              </Link>
+                            </Button>
+                            <Button 
+                              variant="outline" 
+                              size="sm" 
+                              asChild
+                              className="border-blue-500 text-blue-600 hover:bg-blue-50"
+                            >
+                              <Link href={`#plan-${plan.id}`}>
+                                <Eye className="h-4 w-4 mr-1" /> View
+                              </Link>
+                            </Button>
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
               </Table>
+              {teacherPlans.length > 10 && (
+                <div className="mt-4 flex justify-center">
+                  <Button variant="outline" size="sm" className="text-neutral-600">
+                    View All Plans ({teacherPlans.length})
+                  </Button>
+                </div>
+              )}
             </div>
           )}
         </CardContent>
@@ -236,27 +282,41 @@ export default function TeacherWeeklyPlans() {
             ) : (
               <div className="space-y-6">
                 {filteredPlans.map(plan => (
-                  <Card key={plan.id} className="border-t-4 border-t-primary" id={`plan-${plan.id}`}>
-                    <CardHeader>
+                  <Card key={plan.id} className="border-t-4 border-t-primary shadow-md hover:shadow-lg transition-shadow" id={`plan-${plan.id}`}>
+                    <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
                       <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
                         <div>
                           <CardTitle className="text-lg flex items-center">
                             <FileText className="h-5 w-5 mr-2 text-primary" />
-                            {plan.subject.name}
+                            <span className="bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text font-semibold">
+                              {plan.subject.name}
+                            </span>
                           </CardTitle>
-                          <p className="text-sm text-neutral-500 mt-1">
-                            Created: {formatDate(new Date(plan.createdAt))}
-                          </p>
+                          <div className="flex items-center mt-2 space-x-2">
+                            <Badge variant="outline" className="bg-blue-50">
+                              <span className="font-medium text-blue-700">Grade:</span> {plan.grade.name}
+                            </Badge>
+                            <Badge variant="outline">
+                              Created: {formatDate(new Date(plan.createdAt))}
+                            </Badge>
+                          </div>
                         </div>
                         <div className="flex gap-2">
                           <Button 
                             variant="secondary" 
                             size="sm" 
                             onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                            className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-white"
                           >
                             <Download className="h-4 w-4 mr-1" /> Export PDF
                           </Button>
-                          <Button variant="outline" size="sm" asChild disabled={!plan.week.isActive}>
+                          <Button 
+                            variant={plan.week.isActive ? "outline" : "ghost"}
+                            size="sm" 
+                            asChild 
+                            disabled={!plan.week.isActive}
+                            className={plan.week.isActive ? "border-primary text-primary hover:bg-primary/10" : "opacity-50"}
+                          >
                             <Link href={`/plan-editor/${plan.id}`}>
                               <Edit className="h-4 w-4 mr-1" /> Edit Plan
                             </Link>
@@ -264,56 +324,80 @@ export default function TeacherWeeklyPlans() {
                         </div>
                       </div>
                     </CardHeader>
-                    <CardContent>
-                      <Tabs defaultValue="monday">
-                        <TabsList className="w-full grid grid-cols-5">
-                          <TabsTrigger value="monday">Monday</TabsTrigger>
-                          <TabsTrigger value="tuesday">Tuesday</TabsTrigger>
-                          <TabsTrigger value="wednesday">Wednesday</TabsTrigger>
-                          <TabsTrigger value="thursday">Thursday</TabsTrigger>
-                          <TabsTrigger value="friday">Friday</TabsTrigger>
+                    <CardContent className="pt-6">
+                      <Tabs defaultValue="monday" className="w-full">
+                        <TabsList className="w-full grid grid-cols-5 mb-4 bg-muted/30">
+                          <TabsTrigger value="monday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Monday</TabsTrigger>
+                          <TabsTrigger value="tuesday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Tuesday</TabsTrigger>
+                          <TabsTrigger value="wednesday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Wednesday</TabsTrigger>
+                          <TabsTrigger value="thursday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Thursday</TabsTrigger>
+                          <TabsTrigger value="friday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Friday</TabsTrigger>
                         </TabsList>
                         
                         {["monday", "tuesday", "wednesday", "thursday", "friday"].map((day, index) => {
                           const dailyPlan = plan.dailyPlans.find(dp => dp.dayOfWeek === index + 1);
+                          const hasContent = dailyPlan?.topic || dailyPlan?.booksAndPages || dailyPlan?.homework || 
+                                           dailyPlan?.homeworkDueDate || dailyPlan?.assignments || dailyPlan?.notes;
+                          
                           return (
-                            <TabsContent key={day} value={day}>
-                              {dailyPlan ? (
-                                <div className="space-y-4 mt-4">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <h4 className="text-sm font-medium mb-1">Topic</h4>
-                                      <p className="text-neutral-800 border p-2 rounded-md bg-neutral-50">{dailyPlan.topic}</p>
+                            <TabsContent key={day} value={day} className="bg-white rounded-md p-4 border border-muted">
+                              {dailyPlan && hasContent ? (
+                                <div className="space-y-6">
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                                      <h4 className="text-sm font-medium mb-1 text-primary">Topic</h4>
+                                      <p className="text-neutral-800">{dailyPlan.topic || "N/A"}</p>
                                     </div>
-                                    <div>
-                                      <h4 className="text-sm font-medium mb-1">Books & Pages</h4>
-                                      <p className="text-neutral-800 border p-2 rounded-md bg-neutral-50">{dailyPlan.booksAndPages || "N/A"}</p>
+                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-secondary hover:shadow-md transition-shadow">
+                                      <h4 className="text-sm font-medium mb-1 text-secondary">Books & Pages</h4>
+                                      <p className="text-neutral-800">{dailyPlan.booksAndPages || "N/A"}</p>
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                    <div>
-                                      <h4 className="text-sm font-medium mb-1">Homework</h4>
-                                      <p className="text-neutral-800 border p-2 rounded-md bg-neutral-50">{dailyPlan.homework || "N/A"}</p>
+                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
+                                      <h4 className="text-sm font-medium mb-1 text-orange-600">Homework</h4>
+                                      <p className="text-neutral-800">{dailyPlan.homework || "N/A"}</p>
                                     </div>
-                                    <div>
-                                      <h4 className="text-sm font-medium mb-1">Homework Due Date</h4>
-                                      <p className="text-neutral-800 border p-2 rounded-md bg-neutral-50">
+                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+                                      <h4 className="text-sm font-medium mb-1 text-emerald-600">Homework Due Date</h4>
+                                      <p className="text-neutral-800">
                                         {dailyPlan.homeworkDueDate ? formatDate(new Date(dailyPlan.homeworkDueDate)) : "N/A"}
                                       </p>
                                     </div>
                                   </div>
-                                  <div>
-                                    <h4 className="text-sm font-medium mb-1">Assignments</h4>
-                                    <p className="text-neutral-800 border p-2 rounded-md bg-neutral-50">{dailyPlan.assignments || "N/A"}</p>
-                                  </div>
-                                  <div>
-                                    <h4 className="text-sm font-medium mb-1">Notes</h4>
-                                    <p className="text-neutral-800 border p-2 rounded-md bg-neutral-50">{dailyPlan.notes || "N/A"}</p>
+                                  <div className="grid grid-cols-1 gap-6">
+                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+                                      <h4 className="text-sm font-medium mb-1 text-blue-600">Assignments</h4>
+                                      <p className="text-neutral-800">{dailyPlan.assignments || "N/A"}</p>
+                                    </div>
+                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
+                                      <h4 className="text-sm font-medium mb-1 text-purple-600">Notes</h4>
+                                      <p className="text-neutral-800">{dailyPlan.notes || "N/A"}</p>
+                                    </div>
                                   </div>
                                 </div>
                               ) : (
-                                <div className="flex justify-center items-center p-8">
-                                  <p className="text-neutral-500">No plan created for this day.</p>
+                                <div className="flex flex-col justify-center items-center p-8 bg-neutral-50 rounded-md">
+                                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                                    <FileText className="h-8 w-8 text-muted-foreground" />
+                                  </div>
+                                  <p className="text-neutral-500 font-medium">No plan for {day}</p>
+                                  {plan.week.isActive ? (
+                                    <div className="mt-4">
+                                      <Button 
+                                        size="sm" 
+                                        variant="outline" 
+                                        className="border-primary text-primary hover:bg-primary/10"
+                                        asChild
+                                      >
+                                        <Link href={`/plan-editor/${plan.id}`}>
+                                          Create plan for {day}
+                                        </Link>
+                                      </Button>
+                                    </div>
+                                  ) : (
+                                    <p className="text-sm text-neutral-400 mt-2">This week is not active. Cannot edit.</p>
+                                  )}
                                 </div>
                               )}
                             </TabsContent>
@@ -330,23 +414,58 @@ export default function TeacherWeeklyPlans() {
       )}
       
       {/* Create New Plan Card */}
-      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 mb-6">
-        <CardContent className="p-6">
-          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <div>
-              <h3 className="text-lg font-semibold text-neutral-800">Create a New Weekly Plan</h3>
-              <p className="text-neutral-600 mt-1">
-                Start planning your lessons for the upcoming week
-              </p>
-            </div>
-            <Button asChild className="w-full md:w-auto">
-              <Link href="/plan-editor">
-                <Calendar className="mr-2 h-4 w-4" />
-                Create New Plan
-              </Link>
-            </Button>
+      <Card className="bg-gradient-to-r from-primary/20 to-primary/5 border-primary/20 mb-6 shadow-md hover:shadow-lg transition-shadow overflow-hidden">
+        <div className="relative">
+          {/* Background Pattern */}
+          <div className="absolute top-0 right-0 w-32 h-32 opacity-10 transform translate-x-8 -translate-y-8">
+            <div className="w-full h-full bg-primary rounded-full"></div>
           </div>
-        </CardContent>
+          <div className="absolute bottom-0 left-0 w-24 h-24 opacity-10 transform -translate-x-6 translate-y-6">
+            <div className="w-full h-full bg-primary rounded-full"></div>
+          </div>
+          
+          <CardContent className="p-8 relative z-10">
+            <div className="flex flex-col md:flex-row justify-between items-center gap-6">
+              <div className="max-w-lg">
+                <h3 className="text-xl font-semibold bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text">
+                  Create a New Weekly Plan
+                </h3>
+                <p className="text-neutral-600 mt-2">
+                  Start planning your lessons for the upcoming week. Organize topics, homework, 
+                  and resources for your students in one place.
+                </p>
+                <ul className="mt-4 space-y-2">
+                  <li className="flex items-center text-sm text-neutral-700">
+                    <div className="h-5 w-5 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-2">✓</div>
+                    Create detailed plans for each day of the week
+                  </li>
+                  <li className="flex items-center text-sm text-neutral-700">
+                    <div className="h-5 w-5 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-2">✓</div>
+                    Specify homework assignments and due dates
+                  </li>
+                  <li className="flex items-center text-sm text-neutral-700">
+                    <div className="h-5 w-5 rounded-full bg-primary/20 text-primary flex items-center justify-center mr-2">✓</div>
+                    Export to PDF for easy sharing and reference
+                  </li>
+                </ul>
+              </div>
+              <div className="flex-shrink-0">
+                <Button 
+                  asChild 
+                  size="lg"
+                  className="relative group w-full md:w-auto bg-gradient-to-r from-primary to-primary/90 hover:from-primary/90 hover:to-primary shadow-md"
+                >
+                  <Link href="/plan-editor" className="flex items-center px-6">
+                    <div className="mr-3 p-2 bg-white/20 rounded-full transition-all group-hover:bg-white/30">
+                      <Calendar className="h-5 w-5" />
+                    </div>
+                    <span className="font-medium">Create New Plan</span>
+                  </Link>
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </div>
       </Card>
     </PageWrapper>
   );
