@@ -43,49 +43,30 @@ export function generateWeeklyPlanPDF(
       // Track page number
       let pageNumber = 1;
       
-      // Add event listener for new pages
+      // Add event listener for new pages - simplified to prevent stack overflow
       doc.on('pageAdded', () => {
         pageNumber++;
         
-        // Add header with background color to new pages
-        doc.rect(0, 0, doc.page.width, 50)
-           .fill('#f8fafc');
-           
-        // Add a colored line at the top of new pages
-        doc.rect(0, 0, doc.page.width, 5)
-           .fill('#3b82f6');
-           
-        // Add small title to new pages - use shorter text to avoid overflow issues
-        doc.fontSize(14)
-           .font('Helvetica-Bold')
-           .fillColor('#1e40af')
-           .text(`${safeGradeName} - ${safeSubjectName}`, 50, 20, { align: 'center' });
-           
-        // Add footer with styled background
-        const footerY = doc.page.height - 50;
+        // Add a simple header and footer to avoid recursion issues
+        // Blue line at the top
+        doc.strokeColor('#3b82f6')
+           .lineWidth(3)
+           .moveTo(0, 10)
+           .lineTo(doc.page.width, 10)
+           .stroke();
         
-        // Footer background
-        doc.rect(0, footerY - 10, doc.page.width, 60)
-           .fill('#f8fafc');
-        
-        // Blue line at the bottom of the footer
-        doc.rect(0, doc.page.height - 10, doc.page.width, 10)
-           .fill('#3b82f6');
-           
-        // Add page number to new pages
+        // Simple page information
         doc.font('Helvetica')
+           .fontSize(8)
            .fillColor('#475569')
-           .fontSize(9)
-           .text(`Page ${pageNumber}`, doc.page.width - 70, footerY + 15, { align: 'right' });
-           
-        // Add footer text to continuation pages (with max width to prevent errors)
-        doc.fontSize(10)
-           .font('Helvetica')
-           .fillColor('#334155')
-           .text('Weekly Planner System for Schools', 50, footerY + 15, { 
-             align: 'center',
-             width: doc.page.width - 100 // Set max width to avoid overflow
-           });
+           .text(`Page ${pageNumber} - ${safeGradeName} - ${safeSubjectName}`, 50, 20);
+        
+        // Blue line at the bottom
+        doc.strokeColor('#3b82f6')
+           .lineWidth(3)
+           .moveTo(0, doc.page.height - 20)
+           .lineTo(doc.page.width, doc.page.height - 20)
+           .stroke();
       });
 
       // Create a buffer to store the PDF
