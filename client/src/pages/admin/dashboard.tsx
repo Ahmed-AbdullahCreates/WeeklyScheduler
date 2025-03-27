@@ -179,7 +179,7 @@ export default function AdminDashboard() {
                   <SelectValue placeholder="Select Grade" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Select Grade</SelectItem>
+                  <SelectItem value="placeholder">Select Grade</SelectItem>
                   {grades.map(grade => (
                     <SelectItem key={grade.id} value={grade.id.toString()}>{grade.name}</SelectItem>
                   ))}
@@ -194,7 +194,7 @@ export default function AdminDashboard() {
                   <SelectValue placeholder="Select Week" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Select Week</SelectItem>
+                  <SelectItem value="placeholder">Select Week</SelectItem>
                   {planningWeeks.map(week => (
                     <SelectItem key={week.id} value={week.id.toString()}>
                       Week {week.weekNumber} ({formatDate(new Date(week.startDate))} - {formatDate(new Date(week.endDate))})
@@ -303,7 +303,7 @@ export default function AdminDashboard() {
                         {formatDate(new Date(week.startDate))} - {formatDate(new Date(week.endDate))}
                       </TableCell>
                       <TableCell>
-                        <Badge variant={week.isActive ? "success" : "outline"}>
+                        <Badge variant={week.isActive ? "default" : "outline"} className={week.isActive ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}>
                           {week.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>

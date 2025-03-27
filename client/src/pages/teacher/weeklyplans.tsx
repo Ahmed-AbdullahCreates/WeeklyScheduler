@@ -84,7 +84,7 @@ export default function TeacherWeeklyPlans() {
                   <SelectValue placeholder="Select Grade" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Select Grade</SelectItem>
+                  <SelectItem value="placeholder">Select Grade</SelectItem>
                   {teacherData?.grades.map(grade => (
                     <SelectItem key={grade.id} value={grade.id.toString()}>{grade.name}</SelectItem>
                   ))}
@@ -99,7 +99,7 @@ export default function TeacherWeeklyPlans() {
                   <SelectValue placeholder="Select Week" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="">Select Week</SelectItem>
+                  <SelectItem value="placeholder">Select Week</SelectItem>
                   {planningWeeks.map(week => (
                     <SelectItem key={week.id} value={week.id.toString()}>
                       Week {week.weekNumber} ({formatDate(new Date(week.startDate))} - {formatDate(new Date(week.endDate))})
@@ -164,7 +164,7 @@ export default function TeacherWeeklyPlans() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant={planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "success" : "outline"}>
+                        <Badge variant={planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "default" : "outline"} className={planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "bg-green-100 text-green-800 hover:bg-green-200" : ""}>
                           {planningWeeks.find(w => w.id === plan.weekId)?.isActive ? "Active" : "Closed"}
                         </Badge>
                       </TableCell>
