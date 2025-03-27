@@ -3,6 +3,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useQuery, useMutation } from "@tanstack/react-query";
 import { useState } from "react";
+import { useToast } from "@/hooks/use-toast";
 import { 
   CalendarIcon, 
   School, 
@@ -10,7 +11,8 @@ import {
   Users,
   Plus,
   Check,
-  CalendarCheck
+  CalendarCheck,
+  Trash2
 } from "lucide-react";
 import {
   Select,
@@ -27,6 +29,7 @@ import { formatDate } from "@/lib/utils";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { PlanningWeek, User, Grade } from "@shared/schema";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Separator } from "@/components/ui/separator";
 
@@ -34,6 +37,9 @@ export default function AdminDashboard() {
   const [selectedGrade, setSelectedGrade] = useState<string>("");
   const [selectedWeek, setSelectedWeek] = useState<string>("");
   const [newWeekDialogOpen, setNewWeekDialogOpen] = useState(false);
+  const [weekToDelete, setWeekToDelete] = useState<number | null>(null);
+  const [confirmDeleteOpen, setConfirmDeleteOpen] = useState(false);
+  const { toast } = useToast();
   
   // Fetch teachers
   const { data: teachers = [] } = useQuery<User[]>({
@@ -69,6 +75,28 @@ export default function AdminDashboard() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ["/api/planning-weeks"] });
     },
+  });
+  
+  // Delete planning week
+  const deletePlanningWeek = useMutation({
+    mutationFn: async (weekId: number) => {
+      const res = await apiRequest("DELETE", `/api/planning-weeks/${weekId}`, {});
+      if (res.status === 400) {
+        const error = await res.json();
+        throw new Error(error.message);
+      }
+      return res;
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ["/api/planning-weeks"] });
+    },
+    onError: (error: Error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive"
+      });
+    }
   });
   
   // Create new planning week
@@ -175,7 +203,10 @@ export default function AdminDashboard() {
             <div className="flex items-end">
               <Button 
                 className="w-full" 
-                disabled={!selectedGrade || !selectedWeek}
+                disabled={!selectedGrade || !selectedWeek || selectedGrade === "placeholder" || selectedWeek === "placeholder"}
+                onClick={() => {
+                  window.location.href = `/weekly-plans/${selectedGrade}/${selectedWeek}`;
+                }}
               >
                 View Plans
               </Button>
@@ -275,13 +306,24 @@ export default function AdminDashboard() {
                           {week.isActive ? "Active" : "Inactive"}
                         </Badge>
                       </TableCell>
-                      <TableCell>
+                      <TableCell className="space-x-2 flex">
                         <Button 
                           variant="ghost" 
                           className={week.isActive ? "text-destructive hover:text-destructive/90" : "text-primary hover:text-primary/90"}
                           onClick={() => toggleWeekStatus.mutate(week.id)}
                         >
                           {week.isActive ? "Deactivate" : "Activate"}
+                        </Button>
+                        
+                        <Button
+                          variant="ghost"
+                          className="text-destructive hover:text-destructive/90 ml-2"
+                          onClick={() => {
+                            setWeekToDelete(week.id);
+                            setConfirmDeleteOpen(true);
+                          }}
+                        >
+                          <Trash2 className="h-4 w-4" />
                         </Button>
                       </TableCell>
                     </TableRow>
@@ -298,8 +340,8 @@ export default function AdminDashboard() {
         <CardContent className="p-6">
           <div className="flex justify-between items-center mb-4">
             <h3 className="text-lg font-medium text-neutral-800">Recent Teacher Assignments</h3>
-            <Button variant="link" size="sm" className="text-primary">
-              View All
+            <Button variant="link" size="sm" className="text-primary" asChild>
+              <a href="/teachers">View All</a>
             </Button>
           </div>
           
@@ -342,6 +384,36 @@ export default function AdminDashboard() {
           )}
         </CardContent>
       </Card>
+
+      {/* Confirmation Dialog for deleting planning week */}
+      <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure you want to delete this planning week?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. Any plans associated with this week will also be deleted.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setWeekToDelete(null)}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (weekToDelete) {
+                  deletePlanningWeek.mutate(weekToDelete);
+                  setWeekToDelete(null);
+                  toast({
+                    title: "Success",
+                    description: "Planning week deleted successfully",
+                  });
+                }
+              }}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              Delete
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageWrapper>
   );
 }

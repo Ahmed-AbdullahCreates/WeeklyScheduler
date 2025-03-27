@@ -71,6 +71,7 @@ export interface IStorage {
   getAllPlanningWeeks(): Promise<PlanningWeek[]>;
   getActivePlanningWeeks(): Promise<PlanningWeek[]>;
   togglePlanningWeekStatus(id: number): Promise<PlanningWeek | undefined>;
+  deletePlanningWeek(id: number): Promise<boolean>;
   
   // Weekly plans
   createWeeklyPlan(plan: InsertWeeklyPlan): Promise<WeeklyPlan>;
@@ -473,6 +474,22 @@ export class MemStorage implements IStorage {
     const updatedWeek = { ...week, isActive: !week.isActive };
     this.planningWeeks.set(id, updatedWeek);
     return updatedWeek;
+  }
+  
+  async deletePlanningWeek(id: number): Promise<boolean> {
+    // Check if the week exists
+    const week = this.planningWeeks.get(id);
+    if (!week) return false;
+    
+    // Check if there are any weekly plans for this week
+    const weeklyPlans = Array.from(this.weeklyPlans.values())
+      .filter(plan => plan.weekId === id);
+      
+    if (weeklyPlans.length > 0) {
+      return false; // Cannot delete weeks that have associated plans
+    }
+    
+    return this.planningWeeks.delete(id);
   }
   
   // Weekly plans
@@ -951,6 +968,25 @@ export class DatabaseStorage implements IStorage {
       .returning();
     
     return updated.length ? updated[0] : undefined;
+  }
+  
+  async deletePlanningWeek(id: number): Promise<boolean> {
+    try {
+      // Check if there are any weekly plans for this week
+      const weeklyPlanResults = await this.getWeeklyPlansByWeek(id);
+      
+      if (weeklyPlanResults.length > 0) {
+        return false; // Cannot delete weeks that have associated plans
+      }
+      
+      const result = await this.db.delete(planningWeeks)
+        .where(eq(planningWeeks.id, id));
+        
+      return !!result;
+    } catch (error) {
+      console.error("Error deleting planning week:", error);
+      return false;
+    }
   }
 
   // Weekly plans

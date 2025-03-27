@@ -281,6 +281,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
     res.json(week);
   });
   
+  app.delete("/api/planning-weeks/:id", isAdmin, async (req, res) => {
+    const id = parseInt(req.params.id);
+    
+    // Check if there are any weekly plans for this week
+    const weeklyPlans = await storage.getWeeklyPlansByWeek(id);
+    if (weeklyPlans.length > 0) {
+      return res.status(400).json({ 
+        message: "Cannot delete this week because it has associated weekly plans. Please delete the weekly plans first." 
+      });
+    }
+    
+    const deleted = await storage.deletePlanningWeek(id);
+    if (!deleted) {
+      return res.status(404).json({ message: "Planning week not found" });
+    }
+    
+    res.status(204).end();
+  });
+  
   // Weekly plans
   app.post("/api/weekly-plans", isAuthenticated, async (req, res) => {
     try {
