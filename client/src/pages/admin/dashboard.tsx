@@ -111,10 +111,7 @@ export default function AdminDashboard() {
     },
   });
   
-  // Get recent teacher assignments
-  const { data: recentAssignments = [] } = useQuery<any[]>({
-    queryKey: ["/api/recent-assignments"]
-  });
+  // Recent assignments query removed as requested
   
   return (
     <PageWrapper title="Dashboard">
@@ -335,55 +332,7 @@ export default function AdminDashboard() {
         </CardContent>
       </Card>
       
-      {/* Recent Teacher Assignments */}
-      <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-lg font-medium text-neutral-800">Recent Teacher Assignments</h3>
-            <Button variant="link" size="sm" className="text-primary" asChild>
-              <a href="/teachers">View All</a>
-            </Button>
-          </div>
-          
-          {recentAssignments.length === 0 ? (
-            <Alert>
-              <AlertTitle>No recent assignments</AlertTitle>
-              <AlertDescription>
-                No teacher assignments have been made recently.
-              </AlertDescription>
-            </Alert>
-          ) : (
-            <div className="overflow-x-auto">
-              <Table>
-                <TableHeader>
-                  <TableRow>
-                    <TableHead>Teacher</TableHead>
-                    <TableHead>Grade</TableHead>
-                    <TableHead>Subject</TableHead>
-                    <TableHead>Date Assigned</TableHead>
-                  </TableRow>
-                </TableHeader>
-                <TableBody>
-                  {recentAssignments.map((assignment, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{assignment.teacherName}</TableCell>
-                      <TableCell>{assignment.gradeName}</TableCell>
-                      <TableCell>
-                        {assignment.type === 'subject' ? assignment.subjectName : 
-                          <Badge variant="outline" className="bg-blue-50 text-blue-800">
-                            Grade Assignment
-                          </Badge>
-                        }
-                      </TableCell>
-                      <TableCell>{assignment.assignedDate}</TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </div>
-          )}
-        </CardContent>
-      </Card>
+      {/* Recent Teacher Assignments section removed as requested */}
 
       {/* Confirmation Dialog for deleting planning week */}
       <AlertDialog open={confirmDeleteOpen} onOpenChange={setConfirmDeleteOpen}>
