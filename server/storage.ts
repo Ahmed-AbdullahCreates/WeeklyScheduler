@@ -34,6 +34,8 @@ export interface IStorage {
   getUserByUsername(username: string): Promise<User | undefined>;
   createUser(user: InsertUser): Promise<User>;
   updateUser(id: number, userData: Partial<InsertUser>): Promise<User | undefined>;
+  deleteUser(id: number): Promise<boolean>;
+  updateUserRole(id: number, isAdmin: boolean): Promise<User | undefined>;
   getAllUsers(): Promise<User[]>;
   getTeachers(): Promise<User[]>;
   
@@ -180,6 +182,64 @@ export class MemStorage implements IStorage {
   
   async getTeachers(): Promise<User[]> {
     return Array.from(this.users.values()).filter(user => !user.isAdmin);
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    // Don't allow deleting the last admin
+    const user = this.users.get(id);
+    if (!user) return false;
+    
+    if (user.isAdmin) {
+      // Check if this is the last admin
+      const admins = Array.from(this.users.values()).filter(u => u.isAdmin);
+      if (admins.length <= 1) {
+        return false; // Can't delete the last admin
+      }
+    }
+    
+    // Delete any associated teacher-grade and teacher-subject relationships
+    Array.from(this.teacherGrades.values())
+      .filter(tg => tg.teacherId === id)
+      .forEach(tg => this.teacherGrades.delete(tg.id));
+      
+    Array.from(this.teacherSubjects.values())
+      .filter(ts => ts.teacherId === id)
+      .forEach(ts => this.teacherSubjects.delete(ts.id));
+    
+    // Delete any associated weekly plans and daily plans
+    const weeklyPlanIds = Array.from(this.weeklyPlans.values())
+      .filter(wp => wp.teacherId === id)
+      .map(wp => wp.id);
+      
+    weeklyPlanIds.forEach(wpId => {
+      // Delete associated daily plans
+      Array.from(this.dailyPlans.values())
+        .filter(dp => dp.weeklyPlanId === wpId)
+        .forEach(dp => this.dailyPlans.delete(dp.id));
+        
+      // Delete the weekly plan
+      this.weeklyPlans.delete(wpId);
+    });
+    
+    // Finally delete the user
+    return this.users.delete(id);
+  }
+  
+  async updateUserRole(id: number, isAdmin: boolean): Promise<User | undefined> {
+    const user = this.users.get(id);
+    if (!user) return undefined;
+    
+    // If we're removing admin role, make sure this isn't the last admin
+    if (user.isAdmin && !isAdmin) {
+      const admins = Array.from(this.users.values()).filter(u => u.isAdmin);
+      if (admins.length <= 1) {
+        return undefined; // Can't remove admin status from the last admin
+      }
+    }
+    
+    const updatedUser = { ...user, isAdmin };
+    this.users.set(id, updatedUser);
+    return updatedUser;
   }
   
   // Grade management
@@ -596,6 +656,51 @@ export class DatabaseStorage implements IStorage {
 
   async getTeachers(): Promise<User[]> {
     return await this.db.select().from(users).where(eq(users.isAdmin, false));
+  }
+  
+  async deleteUser(id: number): Promise<boolean> {
+    try {
+      // First check if this is the last admin
+      if ((await this.getUser(id))?.isAdmin) {
+        const admins = await this.db.select().from(users).where(eq(users.isAdmin, true));
+        if (admins.length <= 1) {
+          return false; // Can't delete the last admin
+        }
+      }
+      
+      // Start a transaction to handle all related deletions
+      // Database will cascade delete all related records thanks to foreign key constraints
+      const result = await this.db.delete(users).where(eq(users.id, id)).returning();
+      return result.length > 0;
+    } catch (error) {
+      console.error("Error deleting user:", error);
+      return false;
+    }
+  }
+  
+  async updateUserRole(id: number, isAdmin: boolean): Promise<User | undefined> {
+    try {
+      // If we're removing admin status, make sure this isn't the last admin
+      if (!isAdmin) {
+        const user = await this.getUser(id);
+        if (user?.isAdmin) {
+          const admins = await this.db.select().from(users).where(eq(users.isAdmin, true));
+          if (admins.length <= 1) {
+            return undefined; // Can't remove admin status from the last admin
+          }
+        }
+      }
+      
+      const updatedUser = await this.db.update(users)
+        .set({ isAdmin })
+        .where(eq(users.id, id))
+        .returning();
+      
+      return updatedUser.length ? updatedUser[0] : undefined;
+    } catch (error) {
+      console.error("Error updating user role:", error);
+      return undefined;
+    }
   }
 
   // Grade management

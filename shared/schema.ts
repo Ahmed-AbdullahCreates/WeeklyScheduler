@@ -157,6 +157,12 @@ export const loginSchema = z.object({
 
 export type LoginData = z.infer<typeof loginSchema>;
 
+export const userRoleSchema = z.object({
+  isAdmin: z.boolean(),
+});
+
+export type UserRoleData = z.infer<typeof userRoleSchema>;
+
 // Extended types for joined data
 export type TeacherWithAssignments = User & {
   grades: Grade[];

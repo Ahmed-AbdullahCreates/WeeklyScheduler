@@ -3,7 +3,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useMutation } from "@tanstack/react-query";
-import { User, Grade, Subject } from "@shared/schema";
+import { User, Grade, Subject, userRoleSchema } from "@shared/schema";
 import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
@@ -11,13 +11,15 @@ import { Input } from "@/components/ui/input";
 import { useState } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Plus, Pencil, UserPlus } from "lucide-react";
+import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
+import { Plus, Pencil, UserPlus, UserCheck, UserX, ShieldCheck, ShieldOff, Trash2 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useAuth } from "@/hooks/use-auth";
 
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -30,10 +32,12 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 
 export default function AdminTeachers() {
   const { toast } = useToast();
+  const { user: currentUser } = useAuth();
   const [selectedTeacher, setSelectedTeacher] = useState<User | null>(null);
   const [isAssignGradeOpen, setIsAssignGradeOpen] = useState(false);
   const [isAssignSubjectOpen, setIsAssignSubjectOpen] = useState(false);
   const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
+  const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -130,6 +134,56 @@ export default function AdminTeachers() {
       });
       queryClient.invalidateQueries({ queryKey: ["/api/teacher-subjects", selectedTeacher?.id] });
       setIsAssignSubjectOpen(false);
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Update user role
+  const updateUserRole = useMutation({
+    mutationFn: async ({ userId, isAdmin }: { userId: number, isAdmin: boolean }) => {
+      const res = await apiRequest("PATCH", `/api/users/${userId}/role`, { isAdmin });
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User role updated successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/teachers"] });
+    },
+    onError: (error) => {
+      toast({
+        title: "Error",
+        description: error.message,
+        variant: "destructive",
+      });
+    },
+  });
+  
+  // Delete user
+  const deleteUser = useMutation({
+    mutationFn: async (userId: number) => {
+      const res = await apiRequest("DELETE", `/api/users/${userId}`);
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.message || "Failed to delete user");
+      }
+      return await res.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Success",
+        description: "User deleted successfully",
+      });
+      queryClient.invalidateQueries({ queryKey: ["/api/teachers"] });
+      setIsDeleteConfirmOpen(false);
+      setSelectedTeacher(null);
     },
     onError: (error) => {
       toast({
@@ -291,7 +345,8 @@ export default function AdminTeachers() {
                           setIsAssignGradeOpen(true);
                         }}
                       >
-                        Assign Grade
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Grade
                       </Button>
                       <Button 
                         variant="outline" 
@@ -301,8 +356,46 @@ export default function AdminTeachers() {
                           setIsAssignSubjectOpen(true);
                         }}
                       >
-                        Assign Subject
+                        <Plus className="h-3.5 w-3.5 mr-1" />
+                        Subject
                       </Button>
+                      
+                      {/* Toggle Admin Status */}
+                      {teacher.id !== currentUser?.id && (
+                        <Button
+                          variant={teacher.isAdmin ? "destructive" : "default"}
+                          size="sm"
+                          onClick={() => {
+                            updateUserRole.mutate({
+                              userId: teacher.id,
+                              isAdmin: !teacher.isAdmin
+                            });
+                          }}
+                          disabled={updateUserRole.isPending}
+                          title={teacher.isAdmin ? "Remove admin rights" : "Make admin"}
+                        >
+                          {teacher.isAdmin ? (
+                            <ShieldOff className="h-3.5 w-3.5" />
+                          ) : (
+                            <ShieldCheck className="h-3.5 w-3.5" />
+                          )}
+                        </Button>
+                      )}
+                      
+                      {/* Delete User */}
+                      {teacher.id !== currentUser?.id && (
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTeacher(teacher);
+                            setIsDeleteConfirmOpen(true);
+                          }}
+                          title="Delete user"
+                        >
+                          <Trash2 className="h-3.5 w-3.5" />
+                        </Button>
+                      )}
                     </div>
                   </TableCell>
                 </TableRow>
@@ -407,6 +500,33 @@ export default function AdminTeachers() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+      
+      {/* Delete Confirmation Dialog */}
+      <AlertDialog open={isDeleteConfirmOpen} onOpenChange={setIsDeleteConfirmOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Are you sure?</AlertDialogTitle>
+            <AlertDialogDescription>
+              This action cannot be undone. This will permanently delete {selectedTeacher?.fullName}'s account
+              and remove all associated data.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              onClick={() => {
+                if (selectedTeacher) {
+                  deleteUser.mutate(selectedTeacher.id);
+                }
+              }}
+              disabled={deleteUser.isPending}
+            >
+              {deleteUser.isPending ? "Deleting..." : "Delete"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </PageWrapper>
   );
 }

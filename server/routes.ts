@@ -42,6 +42,55 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   // Admin routes
   
+  // User management
+  app.get("/api/users", isAdmin, async (req, res) => {
+    const users = await storage.getAllUsers();
+    res.json(users);
+  });
+  
+  app.delete("/api/users/:id", isAdmin, async (req, res) => {
+    const userId = parseInt(req.params.id);
+    
+    // Prevent deleting yourself
+    if (userId === (req.user as User).id) {
+      return res.status(400).json({ message: "Cannot delete your own account" });
+    }
+    
+    const success = await storage.deleteUser(userId);
+    if (success) {
+      res.status(200).json({ message: "User deleted successfully" });
+    } else {
+      res.status(404).json({ message: "User not found or could not be deleted" });
+    }
+  });
+  
+  app.patch("/api/users/:id/role", isAdmin, async (req, res) => {
+    const userId = parseInt(req.params.id);
+    
+    // Validate request body
+    const schema = z.object({
+      isAdmin: z.boolean()
+    });
+    
+    try {
+      const { isAdmin: newRole } = schema.parse(req.body);
+      
+      // Prevent removing your own admin access
+      if (userId === (req.user as User).id && !newRole) {
+        return res.status(400).json({ message: "Cannot remove your own admin privileges" });
+      }
+      
+      const updatedUser = await storage.updateUserRole(userId, newRole);
+      if (updatedUser) {
+        res.json(updatedUser);
+      } else {
+        res.status(404).json({ message: "User not found or role could not be updated" });
+      }
+    } catch (error) {
+      res.status(400).json({ message: "Invalid request data", error });
+    }
+  });
+  
   // Grade management
   app.get("/api/grades", isAuthenticated, async (req, res) => {
     const grades = await storage.getAllGrades();
