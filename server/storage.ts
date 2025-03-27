@@ -1,7 +1,19 @@
 import { users, User, InsertUser, Grade, InsertGrade, grades, subjects, InsertSubject, Subject, teacherGrades, TeacherGrade, InsertTeacherGrade, teacherSubjects, TeacherSubject, InsertTeacherSubject, PlanningWeek, planningWeeks, InsertPlanningWeek, WeeklyPlan, weeklyPlans, InsertWeeklyPlan, DailyPlan, dailyPlans, InsertDailyPlan, GradeWithSubjects, TeacherWithAssignments, WeeklyPlanWithDetails, DailyPlanData, WeeklyPlanComplete } from "@shared/schema";
 import session from "express-session";
 import createMemoryStore from "memorystore";
+import connectPgSimple from "connect-pg-simple";
+import { neon, neonConfig } from '@neondatabase/serverless';
+import pg from 'pg';
+const { Pool } = pg;
+import { eq, and, desc } from 'drizzle-orm';
+import { drizzle } from 'drizzle-orm/neon-http';
 
+// Setup PostgreSQL connection
+const pool = new Pool({
+  connectionString: process.env.DATABASE_URL,
+});
+
+const PostgresSessionStore = connectPgSimple(session);
 const MemoryStore = createMemoryStore(session);
 
 export interface IStorage {
@@ -61,7 +73,7 @@ export interface IStorage {
   updateDailyPlan(id: number, plan: Partial<InsertDailyPlan>): Promise<DailyPlan | undefined>;
   
   // Session store
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
 }
 
 export class MemStorage implements IStorage {
@@ -83,7 +95,7 @@ export class MemStorage implements IStorage {
   private weeklyPlanIdCounter: number;
   private dailyPlanIdCounter: number;
   
-  sessionStore: session.SessionStore;
+  sessionStore: session.Store;
   
   constructor() {
     this.users = new Map();
@@ -130,7 +142,11 @@ export class MemStorage implements IStorage {
   
   async createUser(insertUser: InsertUser): Promise<User> {
     const id = this.userIdCounter++;
-    const user: User = { ...insertUser, id };
+    const user: User = { 
+      ...insertUser, 
+      id,
+      isAdmin: insertUser.isAdmin || false 
+    };
     this.users.set(id, user);
     return user;
   }
@@ -280,7 +296,11 @@ export class MemStorage implements IStorage {
   // Planning weeks
   async createPlanningWeek(week: InsertPlanningWeek): Promise<PlanningWeek> {
     const id = this.planningWeekIdCounter++;
-    const planningWeek: PlanningWeek = { ...week, id };
+    const planningWeek: PlanningWeek = { 
+      ...week, 
+      id,
+      isActive: week.isActive ?? true 
+    };
     this.planningWeeks.set(id, planningWeek);
     return planningWeek;
   }
@@ -418,7 +438,15 @@ export class MemStorage implements IStorage {
   // Daily plans
   async createDailyPlan(plan: InsertDailyPlan): Promise<DailyPlan> {
     const id = this.dailyPlanIdCounter++;
-    const dailyPlan: DailyPlan = { ...plan, id };
+    const dailyPlan: DailyPlan = { 
+      ...plan, 
+      id,
+      booksAndPages: plan.booksAndPages ?? null,
+      homework: plan.homework ?? null,
+      homeworkDueDate: plan.homeworkDueDate ?? null,
+      assignments: plan.assignments ?? null,
+      notes: plan.notes ?? null
+    };
     this.dailyPlans.set(id, dailyPlan);
     return dailyPlan;
   }
@@ -442,4 +470,376 @@ export class MemStorage implements IStorage {
   }
 }
 
-export const storage = new MemStorage();
+// Create a PostgreSQL-backed storage implementation
+export class DatabaseStorage implements IStorage {
+  sessionStore: session.Store;
+  private db: any;
+
+  constructor() {
+    // Create PostgreSQL session store
+    this.sessionStore = new PostgresSessionStore({
+      pool,
+      createTableIfMissing: true
+    });
+    
+    // Initialize neon client for serverless PostgreSQL
+    neonConfig.fetchConnectionCache = true;
+    const client = neon(process.env.DATABASE_URL!);
+    this.db = drizzle(client);
+  }
+
+  // User management
+  async getUser(id: number): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.id, id));
+    return result.length ? result[0] : undefined;
+  }
+
+  async getUserByUsername(username: string): Promise<User | undefined> {
+    const result = await this.db.select().from(users).where(eq(users.username, username));
+    return result.length ? result[0] : undefined;
+  }
+
+  async createUser(user: InsertUser): Promise<User> {
+    const insertedUser = await this.db.insert(users).values(user).returning();
+    return insertedUser[0];
+  }
+
+  async getAllUsers(): Promise<User[]> {
+    return await this.db.select().from(users);
+  }
+
+  async getTeachers(): Promise<User[]> {
+    return await this.db.select().from(users).where(eq(users.isAdmin, false));
+  }
+
+  // Grade management
+  async createGrade(grade: InsertGrade): Promise<Grade> {
+    const insertedGrade = await this.db.insert(grades).values(grade).returning();
+    return insertedGrade[0];
+  }
+
+  async getGradeById(id: number): Promise<Grade | undefined> {
+    const result = await this.db.select().from(grades).where(eq(grades.id, id));
+    return result.length ? result[0] : undefined;
+  }
+
+  async getAllGrades(): Promise<Grade[]> {
+    return await this.db.select().from(grades);
+  }
+
+  async updateGrade(id: number, grade: InsertGrade): Promise<Grade | undefined> {
+    const updatedGrade = await this.db.update(grades)
+      .set(grade)
+      .where(eq(grades.id, id))
+      .returning();
+    return updatedGrade.length ? updatedGrade[0] : undefined;
+  }
+
+  async deleteGrade(id: number): Promise<boolean> {
+    const result = await this.db.delete(grades).where(eq(grades.id, id));
+    return !!result;
+  }
+
+  // Subject management
+  async createSubject(subject: InsertSubject): Promise<Subject> {
+    const insertedSubject = await this.db.insert(subjects).values(subject).returning();
+    return insertedSubject[0];
+  }
+
+  async getSubjectById(id: number): Promise<Subject | undefined> {
+    const result = await this.db.select().from(subjects).where(eq(subjects.id, id));
+    return result.length ? result[0] : undefined;
+  }
+
+  async getAllSubjects(): Promise<Subject[]> {
+    return await this.db.select().from(subjects);
+  }
+
+  async updateSubject(id: number, subject: InsertSubject): Promise<Subject | undefined> {
+    const updatedSubject = await this.db.update(subjects)
+      .set(subject)
+      .where(eq(subjects.id, id))
+      .returning();
+    return updatedSubject.length ? updatedSubject[0] : undefined;
+  }
+
+  async deleteSubject(id: number): Promise<boolean> {
+    const result = await this.db.delete(subjects).where(eq(subjects.id, id));
+    return !!result;
+  }
+
+  // Teacher-Grade assignments
+  async assignTeacherToGrade(teacherGrade: InsertTeacherGrade): Promise<TeacherGrade> {
+    // Check if assignment already exists
+    const existing = await this.db.select()
+      .from(teacherGrades)
+      .where(and(
+        eq(teacherGrades.teacherId, teacherGrade.teacherId),
+        eq(teacherGrades.gradeId, teacherGrade.gradeId)
+      ));
+    
+    if (existing.length) return existing[0];
+    
+    // Create new assignment
+    const inserted = await this.db.insert(teacherGrades)
+      .values(teacherGrade)
+      .returning();
+    return inserted[0];
+  }
+
+  async getTeacherGrades(teacherId: number): Promise<Grade[]> {
+    const assignments = await this.db.select({
+      grade: grades
+    })
+    .from(teacherGrades)
+    .where(eq(teacherGrades.teacherId, teacherId))
+    .innerJoin(grades, eq(teacherGrades.gradeId, grades.id));
+
+    return assignments.map((a: any) => a.grade);
+  }
+
+  async removeTeacherFromGrade(teacherId: number, gradeId: number): Promise<boolean> {
+    const result = await this.db.delete(teacherGrades)
+      .where(and(
+        eq(teacherGrades.teacherId, teacherId),
+        eq(teacherGrades.gradeId, gradeId)
+      ));
+    return !!result;
+  }
+
+  async getTeachersForGrade(gradeId: number): Promise<User[]> {
+    const assignments = await this.db.select({
+      teacher: users
+    })
+    .from(teacherGrades)
+    .where(eq(teacherGrades.gradeId, gradeId))
+    .innerJoin(users, eq(teacherGrades.teacherId, users.id));
+
+    return assignments.map((a: any) => a.teacher);
+  }
+
+  // Teacher-Subject assignments
+  async assignTeacherToSubject(teacherSubject: InsertTeacherSubject): Promise<TeacherSubject> {
+    // Check if assignment already exists
+    const existing = await this.db.select()
+      .from(teacherSubjects)
+      .where(and(
+        eq(teacherSubjects.teacherId, teacherSubject.teacherId),
+        eq(teacherSubjects.gradeId, teacherSubject.gradeId),
+        eq(teacherSubjects.subjectId, teacherSubject.subjectId)
+      ));
+    
+    if (existing.length) return existing[0];
+    
+    // Create new assignment
+    const inserted = await this.db.insert(teacherSubjects)
+      .values(teacherSubject)
+      .returning();
+    return inserted[0];
+  }
+
+  async getTeacherSubjects(teacherId: number, gradeId: number): Promise<Subject[]> {
+    const assignments = await this.db.select({
+      subject: subjects
+    })
+    .from(teacherSubjects)
+    .where(and(
+      eq(teacherSubjects.teacherId, teacherId),
+      eq(teacherSubjects.gradeId, gradeId)
+    ))
+    .innerJoin(subjects, eq(teacherSubjects.subjectId, subjects.id));
+
+    return assignments.map((a: any) => a.subject);
+  }
+
+  async removeTeacherFromSubject(teacherId: number, gradeId: number, subjectId: number): Promise<boolean> {
+    const result = await this.db.delete(teacherSubjects)
+      .where(and(
+        eq(teacherSubjects.teacherId, teacherId),
+        eq(teacherSubjects.gradeId, gradeId),
+        eq(teacherSubjects.subjectId, subjectId)
+      ));
+    return !!result;
+  }
+
+  // Planning weeks
+  async createPlanningWeek(week: InsertPlanningWeek): Promise<PlanningWeek> {
+    const inserted = await this.db.insert(planningWeeks)
+      .values(week)
+      .returning();
+    return inserted[0];
+  }
+
+  async getPlanningWeekById(id: number): Promise<PlanningWeek | undefined> {
+    const result = await this.db.select()
+      .from(planningWeeks)
+      .where(eq(planningWeeks.id, id));
+    return result.length ? result[0] : undefined;
+  }
+
+  async getAllPlanningWeeks(): Promise<PlanningWeek[]> {
+    return await this.db.select()
+      .from(planningWeeks)
+      .orderBy(desc(planningWeeks.year), desc(planningWeeks.weekNumber));
+  }
+
+  async getActivePlanningWeeks(): Promise<PlanningWeek[]> {
+    return await this.db.select()
+      .from(planningWeeks)
+      .where(eq(planningWeeks.isActive, true))
+      .orderBy(desc(planningWeeks.year), desc(planningWeeks.weekNumber));
+  }
+
+  async togglePlanningWeekStatus(id: number): Promise<PlanningWeek | undefined> {
+    const week = await this.getPlanningWeekById(id);
+    if (!week) return undefined;
+    
+    const updated = await this.db.update(planningWeeks)
+      .set({ isActive: !week.isActive })
+      .where(eq(planningWeeks.id, id))
+      .returning();
+    
+    return updated.length ? updated[0] : undefined;
+  }
+
+  // Weekly plans
+  async createWeeklyPlan(plan: InsertWeeklyPlan): Promise<WeeklyPlan> {
+    const now = new Date();
+    const inserted = await this.db.insert(weeklyPlans)
+      .values({
+        ...plan,
+        createdAt: now,
+        updatedAt: now
+      })
+      .returning();
+    return inserted[0];
+  }
+
+  async getWeeklyPlanById(id: number): Promise<WeeklyPlan | undefined> {
+    const result = await this.db.select()
+      .from(weeklyPlans)
+      .where(eq(weeklyPlans.id, id));
+    return result.length ? result[0] : undefined;
+  }
+
+  async getWeeklyPlansByTeacher(teacherId: number): Promise<WeeklyPlan[]> {
+    return await this.db.select()
+      .from(weeklyPlans)
+      .where(eq(weeklyPlans.teacherId, teacherId));
+  }
+
+  async getWeeklyPlansByGrade(gradeId: number): Promise<WeeklyPlan[]> {
+    return await this.db.select()
+      .from(weeklyPlans)
+      .where(eq(weeklyPlans.gradeId, gradeId));
+  }
+
+  async getWeeklyPlansByWeek(weekId: number): Promise<WeeklyPlan[]> {
+    return await this.db.select()
+      .from(weeklyPlans)
+      .where(eq(weeklyPlans.weekId, weekId));
+  }
+
+  async getWeeklyPlansByGradeAndWeek(gradeId: number, weekId: number): Promise<WeeklyPlanWithDetails[]> {
+    const plans = await this.db.select()
+      .from(weeklyPlans)
+      .where(and(
+        eq(weeklyPlans.gradeId, gradeId),
+        eq(weeklyPlans.weekId, weekId)
+      ));
+    
+    return Promise.all(plans.map(async plan => {
+      const teacher = await this.getUser(plan.teacherId);
+      const grade = await this.getGradeById(plan.gradeId);
+      const subject = await this.getSubjectById(plan.subjectId);
+      const week = await this.getPlanningWeekById(plan.weekId);
+      const dailyPlans = await this.getDailyPlansByWeeklyPlan(plan.id);
+      
+      if (!teacher || !grade || !subject || !week) {
+        throw new Error("Missing related data for weekly plan");
+      }
+      
+      return {
+        ...plan,
+        teacher,
+        grade,
+        subject,
+        week,
+        dailyPlans
+      };
+    }));
+  }
+
+  async getWeeklyPlanComplete(planId: number): Promise<WeeklyPlanComplete | undefined> {
+    const weeklyPlan = await this.getWeeklyPlanById(planId);
+    if (!weeklyPlan) return undefined;
+    
+    const allDailyPlans = await this.getDailyPlansByWeeklyPlan(planId);
+    
+    const dailyPlans: DailyPlanData = {
+      monday: allDailyPlans.find(dp => dp.dayOfWeek === 1),
+      tuesday: allDailyPlans.find(dp => dp.dayOfWeek === 2),
+      wednesday: allDailyPlans.find(dp => dp.dayOfWeek === 3),
+      thursday: allDailyPlans.find(dp => dp.dayOfWeek === 4),
+      friday: allDailyPlans.find(dp => dp.dayOfWeek === 5),
+    };
+    
+    return {
+      weeklyPlan,
+      dailyPlans
+    };
+  }
+
+  async getTeacherFullData(teacherId: number): Promise<TeacherWithAssignments | undefined> {
+    const teacher = await this.getUser(teacherId);
+    if (!teacher) return undefined;
+    
+    const grades = await this.getTeacherGrades(teacherId);
+    
+    const subjects: { [gradeId: number]: Subject[] } = {};
+    
+    for (const grade of grades) {
+      subjects[grade.id] = await this.getTeacherSubjects(teacherId, grade.id);
+    }
+    
+    return {
+      ...teacher,
+      grades,
+      subjects
+    };
+  }
+
+  // Daily plans
+  async createDailyPlan(plan: InsertDailyPlan): Promise<DailyPlan> {
+    const inserted = await this.db.insert(dailyPlans)
+      .values(plan)
+      .returning();
+    return inserted[0];
+  }
+
+  async getDailyPlanById(id: number): Promise<DailyPlan | undefined> {
+    const result = await this.db.select()
+      .from(dailyPlans)
+      .where(eq(dailyPlans.id, id));
+    return result.length ? result[0] : undefined;
+  }
+
+  async getDailyPlansByWeeklyPlan(weeklyPlanId: number): Promise<DailyPlan[]> {
+    return await this.db.select()
+      .from(dailyPlans)
+      .where(eq(dailyPlans.weeklyPlanId, weeklyPlanId));
+  }
+
+  async updateDailyPlan(id: number, plan: Partial<InsertDailyPlan>): Promise<DailyPlan | undefined> {
+    const updated = await this.db.update(dailyPlans)
+      .set(plan)
+      .where(eq(dailyPlans.id, id))
+      .returning();
+    return updated.length ? updated[0] : undefined;
+  }
+}
+
+// Choose storage implementation based on environment
+export const storage = process.env.DATABASE_URL
+  ? new DatabaseStorage()
+  : new MemStorage();
