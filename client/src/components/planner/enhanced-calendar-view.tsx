@@ -197,12 +197,10 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
   ];
 
   return (
-    <Card className="min-h-[600px] shadow-lg border-t-4 border-t-indigo-500">
-      <CardHeader className="bg-gradient-to-r from-gray-50 to-gray-100">
+    <Card className="min-h-[600px] shadow-md">
+      <CardHeader>
         <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center">
-          <CardTitle className="bg-gradient-to-r from-indigo-600 to-purple-600 bg-clip-text text-transparent">
-            Calendar View
-          </CardTitle>
+          <CardTitle>Calendar View</CardTitle>
           <div className="flex flex-col sm:flex-row gap-4 w-full sm:w-auto mt-4 sm:mt-0">
             <Select value={selectedGrade} onValueChange={setSelectedGrade}>
               <SelectTrigger className="w-full sm:w-[180px]">
@@ -271,32 +269,22 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
           </div>
         ) : (
           <>
-            <div className="mb-6 flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="mb-4 flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
               <div className="flex flex-wrap gap-2">
                 <div className="relative flex-grow max-w-md">
                   <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-gray-500" />
                   <Input
-                    placeholder="Search plans by topic, teacher, etc..."
-                    className="pl-8 pr-10 w-full"
+                    placeholder="Search plans..."
+                    className="pl-8 w-full"
                     value={searchTerm}
                     onChange={(e) => setSearchTerm(e.target.value)}
                   />
-                  {searchTerm && (
-                    <Button
-                      variant="ghost"
-                      size="icon"
-                      className="absolute right-1 top-1 h-7 w-7"
-                      onClick={() => setSearchTerm('')}
-                    >
-                      <X className="h-3.5 w-3.5" />
-                    </Button>
-                  )}
                 </div>
 
                 <Select value={selectedSubject} onValueChange={setSelectedSubject}>
                   <SelectTrigger className="w-[180px]">
                     <Filter className="mr-2 h-4 w-4" />
-                    <SelectValue placeholder="Filter by subject" />
+                    <SelectValue placeholder="Subject" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Subjects</SelectItem>
@@ -307,123 +295,54 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
                     ))}
                   </SelectContent>
                 </Select>
-
-                <Popover open={showCalendarPicker} onOpenChange={setShowCalendarPicker}>
-                  <PopoverTrigger asChild>
-                    <Button variant="outline" className="gap-2">
-                      <CalendarIcon className="h-4 w-4" />
-                      <span>Date Picker</span>
-                    </Button>
-                  </PopoverTrigger>
-                  <PopoverContent className="w-auto p-0" align="start">
-                    <Calendar
-                      mode="single"
-                      selected={currentViewDate}
-                      onSelect={(date) => {
-                        if (date) {
-                          setCurrentViewDate(date);
-                          // Find matching week for the selected date
-                          const matchingWeek = planningWeeks.find(week => {
-                            const startDate = new Date(week.startDate);
-                            const endDate = new Date(week.endDate);
-                            return date >= startDate && date <= endDate;
-                          });
-                          if (matchingWeek) {
-                            setSelectedWeek(matchingWeek.id.toString());
-                          }
-                          setShowCalendarPicker(false);
-                        }
-                      }}
-                      initialFocus
-                    />
-                  </PopoverContent>
-                </Popover>
               </div>
 
               <div className="flex gap-2">
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        className="gap-2"
-                        onClick={() => setTimelineView(!timelineView)}
-                      >
-                        <Layers className="h-4 w-4" />
-                        <span className="hidden sm:inline">{timelineView ? "Standard View" : "Timeline View"}</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Toggle between standard and timeline views</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Button
+                  variant="outline"
+                  className="gap-2"
+                  onClick={() => setTimelineView(!timelineView)}
+                >
+                  <Layers className="h-4 w-4" />
+                  <span className="hidden sm:inline">{timelineView ? "Standard View" : "Timeline View"}</span>
+                </Button>
 
-                <TooltipProvider>
-                  <Tooltip>
-                    <TooltipTrigger asChild>
-                      <Button
-                        variant="outline"
-                        onClick={() => setIsExportDialogOpen(true)}
-                      >
-                        <Download className="h-4 w-4 mr-2" />
-                        <span className="hidden sm:inline">Export</span>
-                      </Button>
-                    </TooltipTrigger>
-                    <TooltipContent>
-                      <p>Export calendar plans</p>
-                    </TooltipContent>
-                  </Tooltip>
-                </TooltipProvider>
+                <Button
+                  variant="outline"
+                  onClick={() => setIsExportDialogOpen(true)}
+                >
+                  <Download className="h-4 w-4 mr-2" />
+                  <span className="hidden sm:inline">Export</span>
+                </Button>
               </div>
             </div>
-          
-            {/* Display search and filter status if active */}
+            
             {(searchTerm || selectedSubject !== 'all') && (
-              <div className="mb-4 p-2 bg-muted/50 rounded-md flex flex-wrap items-center gap-2">
-                <CheckCircle2 className="h-4 w-4 text-green-600" />
-                <span className="text-sm text-muted-foreground mr-2">Showing filtered results:</span>
-                
-                {searchTerm && (
-                  <Badge variant="outline" className="flex items-center gap-1 bg-primary/10">
-                    <Search className="h-3 w-3" />
-                    "{searchTerm}"
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-4 w-4 ml-1 p-0" 
-                      onClick={() => setSearchTerm('')}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                )}
-                
-                {selectedSubject !== 'all' && (
-                  <Badge variant="outline" className="flex items-center gap-1 bg-primary/10">
-                    <Filter className="h-3 w-3" />
-                    {subjects.find((s: any) => s.id.toString() === selectedSubject)?.name || 'Subject'}
-                    <Button 
-                      variant="ghost" 
-                      size="icon" 
-                      className="h-4 w-4 ml-1 p-0" 
-                      onClick={() => setSelectedSubject('all')}
-                    >
-                      <X className="h-3 w-3" />
-                    </Button>
-                  </Badge>
-                )}
+              <div className="mb-4 flex items-center justify-between">
+                <div className="flex items-center gap-2">
+                  <span className="text-sm text-muted-foreground">Filtered by:</span>
+                  {searchTerm && (
+                    <Badge variant="outline">
+                      Search: "{searchTerm}"
+                    </Badge>
+                  )}
+                  
+                  {selectedSubject !== 'all' && (
+                    <Badge variant="outline">
+                      Subject: {subjects.find((s: any) => s.id.toString() === selectedSubject)?.name || 'Subject'}
+                    </Badge>
+                  )}
+                </div>
                 
                 <Button 
                   variant="link" 
                   size="sm" 
-                  className="ml-auto p-0 h-auto" 
                   onClick={() => {
                     setSearchTerm('');
                     setSelectedSubject('all');
                   }}
                 >
-                  Clear all filters
+                  Clear filters
                 </Button>
               </div>
             )}
@@ -438,25 +357,23 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
                 </DialogHeader>
                 <div className="grid grid-cols-2 gap-4 py-4">
                   <Button
-                    className="flex flex-col h-auto py-4 gap-2"
                     onClick={() => {
                       window.open(`/api/weekly-plans/${selectedGrade}/${selectedWeek}/export-all-pdf`, '_blank');
                       setIsExportDialogOpen(false);
                     }}
                   >
-                    <FileDown className="h-10 w-10" />
-                    <span>PDF Format</span>
+                    <FileDown className="h-4 w-4 mr-2" />
+                    PDF Format
                   </Button>
                   <Button
                     variant="outline"
-                    className="flex flex-col h-auto py-4 gap-2"
                     onClick={() => {
                       window.open(`/api/weekly-plans/${selectedGrade}/${selectedWeek}/export-all-excel`, '_blank');
                       setIsExportDialogOpen(false);
                     }}
                   >
-                    <Sheet className="h-10 w-10" />
-                    <span>Excel Format</span>
+                    <Sheet className="h-4 w-4 mr-2" />
+                    Excel Format
                   </Button>
                 </div>
               </DialogContent>
@@ -608,7 +525,6 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
                                     
                                     <div className="flex justify-end gap-2 mt-4">
                                       <Button 
-                                        className="bg-gradient-to-r from-green-500 to-emerald-600 hover:from-green-600 hover:to-emerald-700 text-white border-0"
                                         size="sm" 
                                         asChild
                                       >
@@ -622,7 +538,7 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
                                       </Button>
                                       
                                       <Button 
-                                        className="bg-gradient-to-r from-amber-500 to-orange-600 hover:from-amber-600 hover:to-orange-700 text-white border-0"
+                                        variant="outline"
                                         size="sm" 
                                         asChild
                                       >
@@ -906,7 +822,7 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
         )}
       </CardContent>
 
-      <CardFooter className="border-t bg-gradient-to-r from-gray-50 to-gray-100 px-6 py-3">
+      <CardFooter className="border-t px-6 py-3">
         <div className="flex flex-wrap items-center justify-between w-full gap-2">
           <p className="text-sm text-gray-500">
             {selectedWeekData && (
@@ -926,10 +842,6 @@ export default function EnhancedCalendarView({ isAdmin = false }: EnhancedCalend
             <div className="flex items-center space-x-1 ml-2">
               <div className="w-2 h-2 rounded-full bg-purple-500"></div>
               <span>Languages</span>
-            </div>
-            <div className="flex items-center space-x-1 ml-2">
-              <div className="w-2 h-2 rounded-full bg-amber-500"></div>
-              <span>Arts</span>
             </div>
           </div>
         </div>
