@@ -34,6 +34,15 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  
+  const getInitials = (name: string) => {
+    return name
+      .split(' ')
+      .map(part => part[0])
+      .join('')
+      .toUpperCase()
+      .substring(0, 2);
+  };
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -109,13 +118,51 @@ export default function ProfilePage() {
 
   return (
     <PageWrapper title="Profile">
-      <div className="grid grid-cols-1 gap-6 md:grid-cols-2">
-        <Card>
-          <CardHeader>
-            <CardTitle>Profile Information</CardTitle>
+      <div className="grid grid-cols-1 gap-6 md:grid-cols-3">
+        <Card className="shadow-md border-0 md:col-span-2 md:row-span-2 overflow-hidden">
+          <CardHeader className="bg-gradient-to-r from-primary/5 to-indigo-100/30 border-b">
+            <div className="flex items-center gap-4 mb-2">
+              <div className="flex h-16 w-16 items-center justify-center rounded-full bg-gradient-to-br from-primary/90 to-indigo-600 text-white text-xl font-semibold shadow-lg">
+                {user.fullName ? getInitials(user.fullName) : "U"}
+              </div>
+              <div>
+                <CardTitle className="text-2xl">{user.fullName}</CardTitle>
+                <CardDescription className="flex items-center gap-2">
+                  @{user.username}
+                  <span className="text-xs px-2 py-1 rounded-full bg-primary/10 text-primary inline-block">
+                    {user.isAdmin ? "Administrator" : "Teacher"}
+                  </span>
+                </CardDescription>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid gap-6">
+              <div>
+                <h3 className="text-lg font-medium text-gray-800 mb-3">Account Information</h3>
+                <div className="grid gap-3 text-sm">
+                  <div className="grid grid-cols-3 gap-4 items-center p-3 rounded-lg bg-slate-50">
+                    <div className="font-medium text-gray-700">Username</div>
+                    <div className="col-span-2 text-gray-600">{user.username}</div>
+                  </div>
+                  <div className="grid grid-cols-3 gap-4 items-center p-3 rounded-lg bg-slate-50">
+                    <div className="font-medium text-gray-700">Role</div>
+                    <div className="col-span-2 text-gray-600">
+                      {user.isAdmin ? "Administrator" : "Teacher"}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
+        <Card className="shadow-md border-0">
+          <CardHeader className="space-y-1 bg-gradient-to-r from-primary/5 to-indigo-100/30 border-b">
+            <CardTitle className="text-xl">Profile Information</CardTitle>
             <CardDescription>Update your personal details</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <Form {...profileForm}>
               <form onSubmit={profileForm.handleSubmit(onProfileSubmit)} className="space-y-6">
                 <FormField
@@ -125,14 +172,18 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>Full Name</FormLabel>
                       <FormControl>
-                        <Input placeholder="John Doe" {...field} />
+                        <Input placeholder="John Doe" className="border-slate-300" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div className="flex items-center gap-2">
-                  <Button type="submit" disabled={updateProfileMutation.isPending}>
+                  <Button 
+                    type="submit" 
+                    disabled={updateProfileMutation.isPending}
+                    className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90"
+                  >
                     {updateProfileMutation.isPending && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
@@ -144,12 +195,12 @@ export default function ProfilePage() {
           </CardContent>
         </Card>
 
-        <Card>
-          <CardHeader>
-            <CardTitle>Change Password</CardTitle>
+        <Card className="shadow-md border-0">
+          <CardHeader className="space-y-1 bg-gradient-to-r from-primary/5 to-indigo-100/30 border-b">
+            <CardTitle className="text-xl">Change Password</CardTitle>
             <CardDescription>Update your account password</CardDescription>
           </CardHeader>
-          <CardContent>
+          <CardContent className="pt-5">
             <Form {...passwordForm}>
               <form onSubmit={passwordForm.handleSubmit(onPasswordSubmit)} className="space-y-6">
                 <FormField
@@ -159,7 +210,7 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>New Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••" {...field} />
+                        <Input type="password" placeholder="••••••" className="border-slate-300" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
@@ -172,14 +223,18 @@ export default function ProfilePage() {
                     <FormItem>
                       <FormLabel>Confirm Password</FormLabel>
                       <FormControl>
-                        <Input type="password" placeholder="••••••" {...field} />
+                        <Input type="password" placeholder="••••••" className="border-slate-300" {...field} />
                       </FormControl>
                       <FormMessage />
                     </FormItem>
                   )}
                 />
                 <div className="flex items-center gap-2">
-                  <Button type="submit" disabled={updatePasswordMutation.isPending}>
+                  <Button 
+                    type="submit" 
+                    disabled={updatePasswordMutation.isPending}
+                    className="bg-gradient-to-r from-primary to-indigo-600 hover:from-primary/90 hover:to-indigo-600/90"
+                  >
                     {updatePasswordMutation.isPending && (
                       <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                     )}
@@ -188,38 +243,6 @@ export default function ProfilePage() {
                 </div>
               </form>
             </Form>
-          </CardContent>
-        </Card>
-
-        <Card className="md:col-span-2">
-          <CardHeader>
-            <CardTitle>Account Information</CardTitle>
-            <CardDescription>View your account details</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="grid gap-4">
-              <div className="flex items-center gap-4">
-                <div className="flex h-12 w-12 items-center justify-center rounded-full bg-primary/10">
-                  <User className="h-6 w-6 text-primary" />
-                </div>
-                <div>
-                  <p className="text-sm font-medium">{user.fullName}</p>
-                  <p className="text-sm text-muted-foreground">@{user.username}</p>
-                </div>
-              </div>
-              <div className="grid gap-2">
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="font-medium">Username</div>
-                  <div className="col-span-2 text-muted-foreground">{user.username}</div>
-                </div>
-                <div className="grid grid-cols-3 gap-4">
-                  <div className="font-medium">Role</div>
-                  <div className="col-span-2 text-muted-foreground">
-                    {user.isAdmin ? "Administrator" : "Teacher"}
-                  </div>
-                </div>
-              </div>
-            </div>
           </CardContent>
         </Card>
       </div>
