@@ -1,0 +1,4 @@
+username,password,fullName,email,role
+mrsmith,password123,John Smith,jsmith@example.com,teacher
+msjones,password123,Sarah Jones,sjones@example.com,teacher
+admin2,password123,Admin User,admin@example.com,admin

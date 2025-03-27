@@ -85,12 +85,15 @@ export async function apiRequest(
       }
     }
     
+    // Create headers object, but don't set Content-Type for FormData
+    // (browser will set this automatically with the correct boundary)
+    const fetchHeaders = formData && data instanceof FormData
+      ? headers
+      : { ...contentTypeHeader, ...headers };
+    
     const res = await fetch(finalUrl, {
       method,
-      headers: {
-        ...(!formData && data ? contentTypeHeader : {}),
-        ...headers,
-      },
+      headers: fetchHeaders,
       body: requestBody,
       credentials: "include",
     });
@@ -168,14 +171,23 @@ async function handleSessionRefresh(
         return originalResponse;
       }
       
+      // Create proper headers for the retry request (don't set Content-Type for FormData)
+      const isFormData = data instanceof FormData;
+      const retryHeaders = isFormData
+        ? headers
+        : { ...(data ? { "Content-Type": "application/json" } : {}), ...headers };
+        
+      // Prepare the body based on data type
+      let retryBody: BodyInit | undefined = undefined;
+      if (data) {
+        retryBody = isFormData ? data as FormData : JSON.stringify(data);
+      }
+      
       // Session is still valid, retry the original request
       const retryRes = await fetch(url, {
         method,
-        headers: {
-          ...(data ? { "Content-Type": "application/json" } : {}),
-          ...headers,
-        },
-        body: data ? JSON.stringify(data) : undefined,
+        headers: retryHeaders,
+        body: retryBody,
         credentials: "include",
       });
       
