@@ -479,21 +479,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       const plan = await storage.createDailyPlan(planData);
-      
-      // Add history record for the creation
-      const historyEntry = {
-        weeklyPlanId: plan.weeklyPlanId,
-        teacherId: weeklyPlan.teacherId,
-        action: 'create',
-        changes: JSON.stringify({
-          dayOfWeek: plan.dayOfWeek,
-          entityType: 'daily_plan',
-          topic: plan.topic
-        })
-      };
-      
-      await storage.addPlanHistory(historyEntry);
-      
       res.status(201).json(plan);
     } catch (error) {
       res.status(400).json({ message: "Invalid plan data", error });
@@ -534,21 +519,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       if (!plan) {
         return res.status(404).json({ message: "Daily plan not found" });
       }
-      
-      // Add history record for the update
-      const historyEntry = {
-        weeklyPlanId: plan.weeklyPlanId,
-        teacherId: weeklyPlan.teacherId,
-        action: 'update',
-        changes: JSON.stringify({
-          dayOfWeek: plan.dayOfWeek,
-          entityType: 'daily_plan',
-          topic: plan.topic,
-          updatedFields: Object.keys(updateData)
-        })
-      };
-      
-      await storage.addPlanHistory(historyEntry);
       
       res.json(plan);
     } catch (error) {
@@ -696,55 +666,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error exporting weekly plan:", error);
       res.status(500).json({ message: "Error exporting weekly plan", error: (error as Error).message });
-    }
-  });
-  
-  // Plan history endpoints
-  app.get("/api/weekly-plans/:id/history", isAuthenticated, async (req, res) => {
-    try {
-      const id = parseInt(req.params.id);
-      
-      // Get the weekly plan to check permissions
-      const weeklyPlan = await storage.getWeeklyPlanById(id);
-      if (!weeklyPlan) {
-        return res.status(404).json({ message: "Weekly plan not found" });
-      }
-      
-      // Check permission
-      const user = req.user as User;
-      if (!user.isAdmin && weeklyPlan.teacherId !== user.id) {
-        return res.status(403).json({ message: "You don't have access to this plan's history" });
-      }
-      
-      const history = await storage.getPlanHistoryByWeeklyPlanId(id);
-      res.json(history);
-    } catch (error) {
-      console.error("Error fetching plan history:", error);
-      res.status(500).json({ message: "Error fetching plan history", error: (error as Error).message });
-    }
-  });
-  
-  app.get("/api/teachers/:id/plan-history", isAuthenticated, async (req, res) => {
-    try {
-      const teacherId = parseInt(req.params.id);
-      
-      // Get the teacher
-      const teacher = await storage.getUser(teacherId);
-      if (!teacher) {
-        return res.status(404).json({ message: "Teacher not found" });
-      }
-      
-      // Check permission - only admins and the teacher themselves can see their history
-      const user = req.user as User;
-      if (!user.isAdmin && user.id !== teacherId) {
-        return res.status(403).json({ message: "You don't have access to this teacher's plan history" });
-      }
-      
-      const history = await storage.getPlanHistoryByTeacherId(teacherId);
-      res.json(history);
-    } catch (error) {
-      console.error("Error fetching teacher plan history:", error);
-      res.status(500).json({ message: "Error fetching teacher plan history", error: (error as Error).message });
     }
   });
   

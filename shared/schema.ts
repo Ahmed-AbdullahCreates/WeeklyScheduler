@@ -195,23 +195,3 @@ export type WeeklyPlanComplete = {
   weeklyPlan: WeeklyPlan;
   dailyPlans: DailyPlanData;
 };
-
-// Plan history tracking
-export const planHistory = pgTable("plan_history", {
-  id: serial("id").primaryKey(),
-  weeklyPlanId: integer("weekly_plan_id").notNull().references(() => weeklyPlans.id, { onDelete: "cascade" }),
-  teacherId: integer("teacher_id").notNull().references(() => users.id),
-  action: text("action").notNull(), // "created", "updated", "deleted"
-  changes: text("changes").notNull(), // JSON string of changes
-  timestamp: timestamp("timestamp").defaultNow().notNull(),
-});
-
-export const insertPlanHistorySchema = createInsertSchema(planHistory).pick({
-  weeklyPlanId: true,
-  teacherId: true,
-  action: true,
-  changes: true
-});
-
-export type InsertPlanHistory = z.infer<typeof insertPlanHistorySchema>;
-export type PlanHistory = typeof planHistory.$inferSelect;
