@@ -692,24 +692,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
       const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
       
+      // Use fallback values for any missing data instead of returning an error
+      const defaultTeacher = teacher || { 
+        id: planComplete.weeklyPlan.teacherId, 
+        username: 'Unknown', 
+        fullName: 'Unknown Teacher', 
+        isAdmin: false, 
+        password: '' 
+      };
+      
+      const defaultGrade = grade || { 
+        id: planComplete.weeklyPlan.gradeId, 
+        name: `Grade ID ${planComplete.weeklyPlan.gradeId}` 
+      };
+      
+      const defaultSubject = subject || { 
+        id: planComplete.weeklyPlan.subjectId, 
+        name: `Subject ID ${planComplete.weeklyPlan.subjectId}` 
+      };
+      
+      const defaultWeek = weekDetails || { 
+        id: planComplete.weeklyPlan.weekId, 
+        weekNumber: 0, 
+        year: new Date().getFullYear(),
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+        isActive: false
+      };
+      
+      // Log a warning about missing data
       if (!weekDetails || !grade || !subject || !teacher) {
-        return res.status(500).json({ message: "Failed to retrieve required data for PDF generation" });
+        console.warn(`Warning: Some related data missing for PDF export of weekly plan ID ${planComplete.weeklyPlan.id}`);
       }
       
-      // Generate the PDF using the simplified generator
+      // Generate the PDF using the simplified generator with default values if needed
       const pdfBuffer = await generateSimplePDF(
         planComplete,
-        teacher.fullName,
-        grade.name,
-        subject.name,
-        weekDetails.weekNumber,
-        weekDetails.year,
-        weekDetails.startDate
+        defaultTeacher.fullName,
+        defaultGrade.name,
+        defaultSubject.name,
+        defaultWeek.weekNumber,
+        defaultWeek.year,
+        defaultWeek.startDate
       );
       
       // Set response headers
       res.setHeader('Content-Type', 'application/pdf');
-      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.pdf`);
+      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${defaultGrade.name}-${defaultSubject.name}-week-${defaultWeek.weekNumber}.pdf`);
       res.setHeader('Content-Length', pdfBuffer.length);
       
       // Send the PDF
@@ -743,24 +772,53 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const subject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
       const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
       
+      // Use fallback values for any missing data instead of returning an error
+      const defaultTeacher = teacher || { 
+        id: planComplete.weeklyPlan.teacherId, 
+        username: 'Unknown', 
+        fullName: 'Unknown Teacher', 
+        isAdmin: false, 
+        password: '' 
+      };
+      
+      const defaultGrade = grade || { 
+        id: planComplete.weeklyPlan.gradeId, 
+        name: `Grade ID ${planComplete.weeklyPlan.gradeId}` 
+      };
+      
+      const defaultSubject = subject || { 
+        id: planComplete.weeklyPlan.subjectId, 
+        name: `Subject ID ${planComplete.weeklyPlan.subjectId}` 
+      };
+      
+      const defaultWeek = weekDetails || { 
+        id: planComplete.weeklyPlan.weekId, 
+        weekNumber: 0, 
+        year: new Date().getFullYear(),
+        startDate: new Date().toISOString(),
+        endDate: new Date().toISOString(),
+        isActive: false
+      };
+      
+      // Log a warning about missing data
       if (!weekDetails || !grade || !subject || !teacher) {
-        return res.status(500).json({ message: "Failed to retrieve required data for Excel generation" });
+        console.warn(`Warning: Some related data missing for Excel export of weekly plan ID ${planComplete.weeklyPlan.id}`);
       }
       
-      // Generate the Excel
+      // Generate the Excel with default values if needed
       const excelBuffer = await generateExcelWorkbook(
         planComplete,
-        teacher.fullName,
-        grade.name,
-        subject.name,
-        weekDetails.weekNumber,
-        weekDetails.year,
-        weekDetails.startDate
+        defaultTeacher.fullName,
+        defaultGrade.name,
+        defaultSubject.name,
+        defaultWeek.weekNumber,
+        defaultWeek.year,
+        defaultWeek.startDate
       );
       
       // Set response headers
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.xlsx`);
+      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${defaultGrade.name}-${defaultSubject.name}-week-${defaultWeek.weekNumber}.xlsx`);
       res.setHeader('Content-Length', excelBuffer.length);
       
       // Send the Excel
