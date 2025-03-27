@@ -1,5 +1,5 @@
 import { PageWrapper } from "@/components/layout/page-wrapper";
-import CalendarView from "@/components/planner/calendar-view";
+import EnhancedCalendarView from "@/components/planner/enhanced-calendar-view";
 
 export default function AdminCalendar() {
   return (
@@ -9,7 +9,7 @@ export default function AdminCalendar() {
         <p className="text-neutral-500 mt-1">View all weekly plans in a calendar format</p>
       </div>
       
-      <CalendarView isAdmin={true} />
+      <EnhancedCalendarView isAdmin={true} />
     </PageWrapper>
   );
 }
