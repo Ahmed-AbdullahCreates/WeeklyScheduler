@@ -354,11 +354,12 @@ export function generateSimplePDF(
             .stroke();
             
           doc.fontSize(12)
-            .font('Helvetica-Italic')
+            .font('Helvetica')
             .fillColor(colors.gray)
             .text('No plan created for this day', leftMargin + (pageWidth/2), currentY + 18, {
               width: pageWidth,
-              align: 'center'
+              align: 'center',
+              oblique: true // Use oblique instead of italic
             });
           
           // Update Y position for next day
