@@ -5,7 +5,8 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import multer from "multer";
 import { parseUsersCsv, processUserImport } from "./utils/csv-import";
-import { generateWeeklyPlanPDF } from "./utils/enhanced-pdf-generator";
+import { generateSimplePDF } from "./utils/simple-pdf-generator";
+import { generateExcelWorkbook } from "./utils/excel-export";
 import {
   insertGradeSchema,
   insertSubjectSchema,
@@ -695,8 +696,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(500).json({ message: "Failed to retrieve required data for PDF generation" });
       }
       
-      // Generate the PDF
-      const pdfBuffer = await generateWeeklyPlanPDF(
+      // Generate the PDF using the simplified generator
+      const pdfBuffer = await generateSimplePDF(
         planComplete,
         teacher.fullName,
         grade.name,
@@ -716,6 +717,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Error exporting weekly plan:", error);
       res.status(500).json({ message: "Error exporting weekly plan", error: (error as Error).message });
+    }
+  });
+  
+  // Excel export endpoint
+  app.get("/api/weekly-plans/:id/export-excel", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Get the complete weekly plan data
+      const planComplete = await storage.getWeeklyPlanComplete(id);
+      if (!planComplete) {
+        return res.status(404).json({ message: "Weekly plan not found" });
+      }
+      
+      // Check permission
+      const user = req.user as User;
+      if (!user.isAdmin && planComplete.weeklyPlan.teacherId !== user.id) {
+        return res.status(403).json({ message: "You don't have access to this plan" });
+      }
+      
+      // Get additional data for the Excel
+      const weekDetails = await storage.getPlanningWeekById(planComplete.weeklyPlan.weekId);
+      const grade = await storage.getGradeById(planComplete.weeklyPlan.gradeId);
+      const subject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
+      const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
+      
+      if (!weekDetails || !grade || !subject || !teacher) {
+        return res.status(500).json({ message: "Failed to retrieve required data for Excel generation" });
+      }
+      
+      // Generate the Excel
+      const excelBuffer = await generateExcelWorkbook(
+        planComplete,
+        teacher.fullName,
+        grade.name,
+        subject.name,
+        weekDetails.weekNumber,
+        weekDetails.year,
+        weekDetails.startDate
+      );
+      
+      // Set response headers
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
+      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.xlsx`);
+      res.setHeader('Content-Length', excelBuffer.length);
+      
+      // Send the Excel
+      res.send(excelBuffer);
+    } catch (error) {
+      console.error("Error exporting Excel:", error);
+      res.status(500).json({ message: "Error exporting Excel", error: (error as Error).message });
     }
   });
   

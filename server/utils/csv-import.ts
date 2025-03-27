@@ -1,245 +1,156 @@
 import { parse } from 'csv-parse';
-import { Readable } from 'stream';
-import { scrypt, randomBytes } from 'crypto';
-import { promisify } from 'util';
 import { InsertUser } from '@shared/schema';
+import { randomBytes, scrypt } from 'crypto';
+import { promisify } from 'util';
 
 const scryptAsync = promisify(scrypt);
 
-// Hash password for secure storage
+// Type for CSV user data
+interface CSVUserData {
+  username: string;
+  password: string;
+  fullName: string;
+  email?: string;
+}
+
+// Type for validation results
+interface ValidationResult {
+  users: CSVUserData[];
+  errors: string[];
+  warnings: string[];
+}
+
+// Hash passwords for new users
 async function hashPassword(password: string): Promise<string> {
   const salt = randomBytes(16).toString('hex');
   const buf = (await scryptAsync(password, salt, 64)) as Buffer;
   return `${buf.toString('hex')}.${salt}`;
 }
 
-// Define record type for validation
-interface CsvRecord {
-  username?: string;
-  password?: string;
-  fullName?: string;
-  email?: string;
-  role?: string;
-  [key: string]: string | undefined;
-}
-
-interface ValidationResult {
-  success: boolean;
-  errors: string[];
-  warnings: string[];
-}
-
-// Validate a CSV record
-function validateRecord(record: CsvRecord, index: number): ValidationResult {
-  const errors: string[] = [];
-  const warnings: string[] = [];
+// Validate a single user from the CSV
+function validateUser(data: Record<string, string>, rowIndex: number): { user?: CSVUserData; error?: string; warning?: string } {
+  const requiredFields = ['username', 'password', 'fullName'];
+  const missingFields = requiredFields.filter(field => !data[field] || data[field].trim() === '');
   
-  // Required fields
-  if (!record.username) {
-    errors.push(`Row ${index + 1}: Missing required field 'username'`);
-  } else if (record.username.length < 3) {
-    errors.push(`Row ${index + 1}: Username '${record.username}' is too short (minimum 3 characters)`);
-  } else if (!/^[a-zA-Z0-9_]+$/.test(record.username)) {
-    errors.push(`Row ${index + 1}: Username '${record.username}' contains invalid characters (only letters, numbers, and underscore are allowed)`);
+  if (missingFields.length > 0) {
+    return {
+      error: `Row ${rowIndex}: Missing required fields: ${missingFields.join(', ')}`
+    };
   }
-
-  if (!record.password) {
-    errors.push(`Row ${index + 1}: Missing required field 'password'`);
-  } else if (record.password.length < 6) {
-    errors.push(`Row ${index + 1}: Password is too short (minimum 6 characters)`);
+  
+  // Validate username format
+  if (!/^[a-zA-Z0-9_]{3,20}$/.test(data.username)) {
+    return {
+      error: `Row ${rowIndex}: Username must be 3-20 characters and contain only letters, numbers, and underscores`
+    };
   }
-
-  // Optional fields with validation
-  if (record.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(record.email)) {
-    warnings.push(`Row ${index + 1}: Invalid email format '${record.email}'`);
+  
+  // Validate password length
+  if (data.password.length < 6) {
+    return {
+      error: `Row ${rowIndex}: Password must be at least 6 characters`
+    };
   }
-
-  if (record.role && !['admin', 'teacher'].includes(record.role.toLowerCase())) {
-    warnings.push(`Row ${index + 1}: Unknown role '${record.role}', assuming 'teacher'`);
+  
+  // Validate email if provided
+  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    return {
+      warning: `Row ${rowIndex}: Invalid email format, will be imported without email`
+    };
   }
-
-  return {
-    success: errors.length === 0,
-    errors,
-    warnings
+  
+  // Create the user object
+  const user: CSVUserData = {
+    username: data.username.trim(),
+    password: data.password.trim(),
+    fullName: data.fullName.trim()
   };
+  
+  // Add email if valid
+  if (data.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
+    user.email = data.email.trim();
+  }
+  
+  return { user };
 }
 
-// Convert CSV file buffer to an array of user objects with validation
-export async function parseUsersCsv(buffer: Buffer): Promise<{
-  users: InsertUser[],
-  errors: string[],
-  warnings: string[]
-}> {
+// Parse CSV data and return validated users
+export async function parseUsersCsv(buffer: Buffer): Promise<ValidationResult> {
   return new Promise((resolve, reject) => {
-    const users: InsertUser[] = [];
+    const users: CSVUserData[] = [];
     const errors: string[] = [];
     const warnings: string[] = [];
-    let rowCount = 0;
-    let validRowCount = 0;
     
-    // Detect UTF-8 BOM and normalize line endings
-    let data = buffer.toString('utf8');
-    if (data.charCodeAt(0) === 0xFEFF) {
-      data = data.slice(1); // Remove BOM if present
-    }
-    
-    // Handle different line endings (CRLF, CR, LF)
-    data = data.replace(/\r\n|\r/g, '\n');
-    
-    // Check for empty file
-    if (data.trim() === '') {
-      resolve({ users: [], errors: ['The uploaded file is empty'], warnings: [] });
-      return;
-    }
-    
-    // Create new buffer with normalized data
-    const normalizedBuffer = Buffer.from(data);
-    
-    const parser = parse({
-      delimiter: ',',
+    // Parse CSV
+    parse(buffer, {
       columns: true,
       skip_empty_lines: true,
       trim: true,
-      relax_column_count: true, // Allow inconsistent column counts
-      skip_records_with_error: true, // Continue parsing if one record has an error
-    });
-
-    // Handle parsing errors for the entire file
-    parser.on('error', function(err) {
-      reject(new Error(`Error parsing CSV: ${err.message}`));
-    });
-
-    parser.on('readable', function() {
-      let record: Record<string, unknown> | null;
-      let index = rowCount;
+      skip_records_with_empty_values: true
+    }, (err, records: Record<string, string>[]) => {
+      if (err) {
+        return reject(new Error(`CSV parsing error: ${err.message}`));
+      }
       
-      // Read record safely with proper type handling
-      while ((record = parser.read()) !== null) {
-        rowCount++;
+      // CSV file is empty
+      if (records.length === 0) {
+        errors.push('CSV file is empty or does not contain valid data');
+        return resolve({ users, errors, warnings });
+      }
+      
+      // Check if the CSV has the required columns
+      const firstRecord = records[0];
+      const requiredColumns = ['username', 'password', 'fullName'];
+      const missingColumns = requiredColumns.filter(col => !Object.keys(firstRecord).includes(col));
+      
+      if (missingColumns.length > 0) {
+        errors.push(`CSV is missing required columns: ${missingColumns.join(', ')}`);
+        return resolve({ users, errors, warnings });
+      }
+      
+      // Process each record
+      records.forEach((record, index) => {
+        const rowNumber = index + 2; // +2 because index is 0-based and we have a header row
+        const validation = validateUser(record, rowNumber);
         
-        // Skip record if it's not an object (though this is unlikely)
-        if (typeof record !== 'object' || record === null) {
-          errors.push(`Row ${index + 1}: Invalid record format`);
-          continue;
-        }
-        
-        // Normalize keys (make case-insensitive)
-        const normalizedRecord: CsvRecord = {};
-        
-        // Enhanced key mapping
-        const keyMap: Record<string, string> = {
-          // Username variations
-          'user': 'username',
-          'username': 'username',
-          'user name': 'username',
-          'userid': 'username',
-          'user id': 'username',
-          'login': 'username',
-          
-          // Name variations
-          'name': 'fullName',
-          'full name': 'fullName',
-          'fullname': 'fullName',
-          'displayname': 'fullName',
-          'display name': 'fullName',
-          'teacher name': 'fullName',
-          'teachername': 'fullName',
-          
-          // Email variations
-          'mail': 'email',
-          'email': 'email',
-          'e-mail': 'email',
-          'emailaddress': 'email',
-          'email address': 'email',
-          
-          // Role variations
-          'admin': 'role',
-          'role': 'role',
-          'user role': 'role',
-          'userrole': 'role',
-          'user type': 'role',
-          'usertype': 'role',
-          'type': 'role',
-          'access': 'role',
-          'isadmin': 'role',
-          'is admin': 'role',
-          'teacher type': 'role',
-          
-          // Password variations
-          'pwd': 'password',
-          'pass': 'password',
-          'password': 'password',
-          'secret': 'password',
-          'credentials': 'password'
-        };
-        
-        // Process each field in the record
-        Object.entries(record).forEach(([key, value]) => {
-          const normalizedKey = key.toLowerCase().trim();
-          const mappedKey = keyMap[normalizedKey] || normalizedKey;
-          
-          // Special handling for role field to normalize values
-          if (mappedKey === 'role' && value !== null && value !== undefined) {
-            // Convert all role variations to standard formats
-            const roleValue = String(value).toLowerCase().trim();
-            if (roleValue === 'yes' || roleValue === 'true' || roleValue === '1' || 
-                roleValue === 'y' || roleValue === 'admin' || roleValue === 'administrator') {
-              normalizedRecord.role = 'admin';
-            } else {
-              normalizedRecord.role = 'teacher';
-            }
-          } 
-          // Normal field processing
-          else if (value !== null && value !== undefined) {
-            normalizedRecord[mappedKey] = typeof value === 'string' ? value.trim() : String(value);
+        if (validation.error) {
+          errors.push(validation.error);
+        } else if (validation.user) {
+          users.push(validation.user);
+          if (validation.warning) {
+            warnings.push(validation.warning);
           }
-        });
-        
-        // Validation
-        const validation = validateRecord(normalizedRecord, index);
-        validation.errors.forEach(error => errors.push(error));
-        validation.warnings.forEach(warning => warnings.push(warning));
-        
-        if (validation.success) {
-          validRowCount++;
-          const userData: InsertUser = {
-            username: normalizedRecord.username!,
-            password: normalizedRecord.password!, // Will be hashed later
-            fullName: normalizedRecord.fullName || normalizedRecord.username || '',
-            email: normalizedRecord.email || '',
-            isAdmin: (normalizedRecord.role?.toLowerCase() === 'admin') || false,
-          };
-          
-          users.push(userData);
         }
-      }
-    });
-
-    parser.on('end', function() {
-      if (rowCount === 0) {
-        errors.push('No valid records found in the CSV file. Please check the file format.');
-      } else {
-        warnings.push(`Processed ${rowCount} rows, found ${validRowCount} valid user records.`);
-      }
+      });
       
       resolve({ users, errors, warnings });
     });
-
-    // Feed the parser with the normalized CSV buffer
-    const readable = new Readable();
-    readable.push(normalizedBuffer);
-    readable.push(null);
-    readable.pipe(parser);
   });
 }
 
-// Process and hash passwords for user records
-export async function processUserImport(users: InsertUser[]): Promise<InsertUser[]> {
-  return Promise.all(
-    users.map(async (user) => ({
-      ...user,
-      password: await hashPassword(user.password),
-    }))
-  );
+// Process validated users (hash passwords, etc.)
+export async function processUserImport(users: CSVUserData[]): Promise<InsertUser[]> {
+  const processedUsers: InsertUser[] = [];
+  
+  for (const user of users) {
+    const hashedPassword = await hashPassword(user.password);
+    
+    // Create the user object for database insertion
+    // Note: Removed isAdmin field as per requirements
+    const insertUser: InsertUser = {
+      username: user.username,
+      password: hashedPassword,
+      fullName: user.fullName,
+      isAdmin: false // Default to regular user
+    };
+    
+    // Add email if provided
+    if (user.email) {
+      insertUser.email = user.email;
+    }
+    
+    processedUsers.push(insertUser);
+  }
+  
+  return processedUsers;
 }

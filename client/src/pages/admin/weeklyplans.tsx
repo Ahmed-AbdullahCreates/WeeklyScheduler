@@ -249,14 +249,24 @@ export default function AdminWeeklyPlans() {
                           </div>
                         </div>
                         <div className="flex items-center gap-3">
-                          <Button 
-                            variant="secondary" 
-                            size="sm"
-                            onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
-                            className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-white"
-                          >
-                            <Download className="h-4 w-4 mr-1" /> Export PDF
-                          </Button>
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button 
+                              variant="secondary" 
+                              size="sm"
+                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                              className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-white"
+                            >
+                              <Download className="h-4 w-4 mr-1" /> PDF
+                            </Button>
+                            <Button 
+                              variant="secondary" 
+                              size="sm" 
+                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-excel`, '_blank')}
+                              className="bg-gradient-to-r from-blue-500/90 to-blue-600 hover:from-blue-600 hover:to-blue-500/90 text-white"
+                            >
+                              <Download className="h-4 w-4 mr-1" /> Excel
+                            </Button>
+                          </div>
                         </div>
                       </div>
                     </CardHeader>
