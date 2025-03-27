@@ -1037,24 +1037,95 @@ export class DatabaseStorage implements IStorage {
       ));
     
     return Promise.all(plans.map(async (plan: WeeklyPlan) => {
-      const teacher = await this.getUser(plan.teacherId);
-      const grade = await this.getGradeById(plan.gradeId);
-      const subject = await this.getSubjectById(plan.subjectId);
-      const week = await this.getPlanningWeekById(plan.weekId);
-      const dailyPlans = await this.getDailyPlansByWeeklyPlan(plan.id);
-      
-      if (!teacher || !grade || !subject || !week) {
-        throw new Error("Missing related data for weekly plan");
+      try {
+        const teacher = await this.getUser(plan.teacherId);
+        const grade = await this.getGradeById(plan.gradeId);
+        const subject = await this.getSubjectById(plan.subjectId);
+        const week = await this.getPlanningWeekById(plan.weekId);
+        const dailyPlans = await this.getDailyPlansByWeeklyPlan(plan.id);
+        
+        // If any related data is missing, create placeholder objects instead of crashing
+        if (!teacher || !grade || !subject || !week) {
+          console.warn(`Missing related data for weekly plan ID ${plan.id}`);
+          
+          // Create default objects
+          const defaultTeacher = teacher || { 
+            id: plan.teacherId, 
+            username: 'Unknown', 
+            fullName: 'Unknown Teacher', 
+            isAdmin: false, 
+            password: '' 
+          };
+          
+          const defaultGrade = grade || { 
+            id: plan.gradeId, 
+            name: `Grade ID ${plan.gradeId}` 
+          };
+          
+          const defaultSubject = subject || { 
+            id: plan.subjectId, 
+            name: `Subject ID ${plan.subjectId}` 
+          };
+          
+          const defaultWeek = week || { 
+            id: plan.weekId, 
+            weekNumber: 0, 
+            year: new Date().getFullYear(),
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString(),
+            isActive: false
+          };
+          
+          return {
+            ...plan,
+            teacher: defaultTeacher,
+            grade: defaultGrade,
+            subject: defaultSubject,
+            week: defaultWeek,
+            dailyPlans
+          };
+        }
+        
+        return {
+          ...plan,
+          teacher,
+          grade,
+          subject,
+          week,
+          dailyPlans
+        };
+      } catch (error) {
+        console.error(`Error processing weekly plan ID ${plan.id}:`, error);
+        
+        // Return a plan with default values in case of error
+        return {
+          ...plan,
+          teacher: { 
+            id: plan.teacherId, 
+            username: 'Error', 
+            fullName: 'Error Loading Teacher', 
+            isAdmin: false, 
+            password: '' 
+          },
+          grade: { 
+            id: plan.gradeId, 
+            name: 'Error Loading Grade' 
+          },
+          subject: { 
+            id: plan.subjectId, 
+            name: 'Error Loading Subject' 
+          },
+          week: { 
+            id: plan.weekId, 
+            weekNumber: 0, 
+            year: new Date().getFullYear(),
+            startDate: new Date().toISOString(),
+            endDate: new Date().toISOString(),
+            isActive: false
+          },
+          dailyPlans: []
+        };
       }
-      
-      return {
-        ...plan,
-        teacher,
-        grade,
-        subject,
-        week,
-        dailyPlans
-      };
     }));
   }
 
