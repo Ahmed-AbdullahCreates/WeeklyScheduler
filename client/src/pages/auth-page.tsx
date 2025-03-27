@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -21,9 +21,18 @@ import {
   FormItem,
   FormLabel,
   FormMessage,
+  FormDescription,
 } from "@/components/ui/form";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Loader2, School } from "lucide-react";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { 
+  Loader2, 
+  School, 
+  Check, 
+  AlertCircle, 
+  LockKeyhole
+} from "lucide-react";
 
 const loginSchema = z.object({
   username: z.string().min(1, "Username is required"),
@@ -43,6 +52,14 @@ type RegisterFormValues = z.infer<typeof registerSchema>;
 export default function AuthPage() {
   const { user, loginMutation, registerMutation } = useAuth();
   const [activeTab, setActiveTab] = useState<"login" | "register">("login");
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordChecks, setPasswordChecks] = useState({
+    hasMinLength: false,
+    hasUpperCase: false,
+    hasLowerCase: false,
+    hasNumber: false,
+    hasSpecial: false
+  });
 
   const loginForm = useForm<LoginFormValues>({
     resolver: zodResolver(loginSchema),
@@ -61,6 +78,55 @@ export default function AuthPage() {
       isAdmin: false,
     },
   });
+
+  // Monitor password input to provide strength feedback
+  useEffect(() => {
+    const subscription = registerForm.watch((value, { name }) => {
+      if (name === "password" || name === undefined) {
+        const password = value.password as string || "";
+        
+        // Check password criteria
+        const checks = {
+          hasMinLength: password.length >= 8,
+          hasUpperCase: /[A-Z]/.test(password),
+          hasLowerCase: /[a-z]/.test(password),
+          hasNumber: /[0-9]/.test(password),
+          hasSpecial: /[^A-Za-z0-9]/.test(password)
+        };
+        
+        setPasswordChecks(checks);
+        
+        // Calculate strength
+        const metCriteria = Object.values(checks).filter(Boolean).length;
+        let strength = 0;
+        
+        if (password.length > 0) {
+          strength = Math.min(100, metCriteria * 20);
+        }
+        
+        setPasswordStrength(strength);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [registerForm.watch]);
+
+  const getPasswordStrengthText = () => {
+    if (passwordStrength === 0) return "";
+    if (passwordStrength <= 20) return "Very Weak";
+    if (passwordStrength <= 40) return "Weak";
+    if (passwordStrength <= 60) return "Fair";
+    if (passwordStrength <= 80) return "Good";
+    return "Strong";
+  };
+
+  const getPasswordStrengthColor = () => {
+    if (passwordStrength <= 20) return "bg-red-500";
+    if (passwordStrength <= 40) return "bg-orange-500";
+    if (passwordStrength <= 60) return "bg-yellow-500";
+    if (passwordStrength <= 80) return "bg-lime-500";
+    return "bg-green-500";
+  };
 
   const onLoginSubmit = (data: LoginFormValues) => {
     loginMutation.mutate(data);
@@ -131,10 +197,20 @@ export default function AuthPage() {
                             </FormItem>
                           )}
                         />
+                        {loginMutation.error && (
+                          <Alert className="border-red-500 bg-red-50 text-red-800 my-3">
+                            <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                            <AlertDescription>
+                              {loginMutation.error.message || "Invalid username or password"}
+                            </AlertDescription>
+                          </Alert>
+                        )}
                         <Button type="submit" className="w-full" disabled={loginMutation.isPending}>
                           {loginMutation.isPending ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : null}
+                          ) : (
+                            <LockKeyhole className="h-4 w-4 mr-2" />
+                          )}
                           Login
                         </Button>
                       </form>
@@ -198,13 +274,94 @@ export default function AuthPage() {
                                 <Input type="password" placeholder="Password" {...field} />
                               </FormControl>
                               <FormMessage />
+                              {field.value && (
+                                <div className="mt-2 space-y-2">
+                                  <div className="space-y-1">
+                                    <div className="flex justify-between text-xs">
+                                      <span>Strength: {getPasswordStrengthText()}</span>
+                                      <span className={passwordStrength >= 80 ? "text-green-600 font-medium" : ""}>
+                                        {passwordStrength}%
+                                      </span>
+                                    </div>
+                                    <Progress value={passwordStrength} className={getPasswordStrengthColor()} />
+                                  </div>
+                                  
+                                  <div className="text-xs space-y-1">
+                                    <div className="flex items-center gap-1.5">
+                                      {passwordChecks.hasMinLength ? (
+                                        <Check className="h-3.5 w-3.5 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="h-3.5 w-3.5 text-neutral-400" />
+                                      )}
+                                      <span className={passwordChecks.hasMinLength ? "text-green-600" : "text-neutral-600"}>
+                                        At least 8 characters
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {passwordChecks.hasUpperCase ? (
+                                        <Check className="h-3.5 w-3.5 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="h-3.5 w-3.5 text-neutral-400" />
+                                      )}
+                                      <span className={passwordChecks.hasUpperCase ? "text-green-600" : "text-neutral-600"}>
+                                        Contains uppercase letters
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {passwordChecks.hasLowerCase ? (
+                                        <Check className="h-3.5 w-3.5 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="h-3.5 w-3.5 text-neutral-400" />
+                                      )}
+                                      <span className={passwordChecks.hasLowerCase ? "text-green-600" : "text-neutral-600"}>
+                                        Contains lowercase letters
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {passwordChecks.hasNumber ? (
+                                        <Check className="h-3.5 w-3.5 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="h-3.5 w-3.5 text-neutral-400" />
+                                      )}
+                                      <span className={passwordChecks.hasNumber ? "text-green-600" : "text-neutral-600"}>
+                                        Contains numbers
+                                      </span>
+                                    </div>
+                                    <div className="flex items-center gap-1.5">
+                                      {passwordChecks.hasSpecial ? (
+                                        <Check className="h-3.5 w-3.5 text-green-600" />
+                                      ) : (
+                                        <AlertCircle className="h-3.5 w-3.5 text-neutral-400" />
+                                      )}
+                                      <span className={passwordChecks.hasSpecial ? "text-green-600" : "text-neutral-600"}>
+                                        Contains special characters
+                                      </span>
+                                    </div>
+                                  </div>
+                                </div>
+                              )}
                             </FormItem>
                           )}
                         />
-                        <Button type="submit" className="w-full" disabled={registerMutation.isPending}>
+                        {registerMutation.error && (
+                          <Alert className="border-red-500 bg-red-50 text-red-800 my-3">
+                            <AlertCircle className="h-4 w-4 mr-2 text-red-500" />
+                            <AlertDescription>
+                              {registerMutation.error.message || "Registration failed. Please try again."}
+                            </AlertDescription>
+                          </Alert>
+                        )}
+                        <Button 
+                          type="submit" 
+                          className="w-full mt-2" 
+                          disabled={registerMutation.isPending || (passwordStrength > 0 && passwordStrength < 60)}
+                          variant={passwordStrength >= 80 ? "default" : "outline"}
+                        >
                           {registerMutation.isPending ? (
                             <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                          ) : null}
+                          ) : (
+                            <Check className="h-4 w-4 mr-2" />
+                          )}
                           Register
                         </Button>
                       </form>

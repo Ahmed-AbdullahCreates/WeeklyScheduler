@@ -328,6 +328,26 @@ export default function TeacherWeeklyPlans() {
           </CardContent>
         </Card>
       )}
+      
+      {/* Create New Plan Card */}
+      <Card className="bg-gradient-to-r from-primary/10 to-primary/5 border-primary/20 mb-6">
+        <CardContent className="p-6">
+          <div className="flex flex-col md:flex-row justify-between items-center gap-4">
+            <div>
+              <h3 className="text-lg font-semibold text-neutral-800">Create a New Weekly Plan</h3>
+              <p className="text-neutral-600 mt-1">
+                Start planning your lessons for the upcoming week
+              </p>
+            </div>
+            <Button asChild className="w-full md:w-auto">
+              <Link href="/plan-editor">
+                <Calendar className="mr-2 h-4 w-4" />
+                Create New Plan
+              </Link>
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
     </PageWrapper>
   );
 }

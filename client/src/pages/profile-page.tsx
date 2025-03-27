@@ -5,13 +5,23 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { User } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from "@/components/ui/card";
-import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage, FormDescription } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { PageWrapper } from "@/components/layout/page-wrapper";
-import { Loader2 } from "lucide-react";
+import { Progress } from "@/components/ui/progress";
+import { Alert, AlertDescription } from "@/components/ui/alert";
+import { 
+  User, 
+  Loader2, 
+  Check, 
+  AlertCircle, 
+  KeyIcon, 
+  LockKeyhole,
+  UserIcon
+} from "lucide-react";
+import { useState, useEffect, useCallback } from "react";
 
 // Schema for profile update
 const profileSchema = z.object({
@@ -34,6 +44,13 @@ export default function ProfilePage() {
   const { user } = useAuth();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [passwordStrength, setPasswordStrength] = useState(0);
+  const [passwordCriteria, setPasswordCriteria] = useState({
+    length: false,
+    number: false,
+    special: false,
+    uppercase: false,
+  });
   
   const getInitials = (name: string) => {
     return name
@@ -43,6 +60,26 @@ export default function ProfilePage() {
       .toUpperCase()
       .substring(0, 2);
   };
+
+  // Check password strength with useCallback to avoid dependency cycles
+  const checkPasswordStrength = useCallback((password: string) => {
+    let strength = 0;
+    const criteria = {
+      length: password.length >= 8,
+      number: /\d/.test(password),
+      special: /[^A-Za-z0-9]/.test(password),
+      uppercase: /[A-Z]/.test(password),
+    };
+
+    // Calculate score
+    if (criteria.length) strength += 25;
+    if (criteria.number) strength += 25;
+    if (criteria.special) strength += 25;
+    if (criteria.uppercase) strength += 25;
+
+    setPasswordStrength(strength);
+    setPasswordCriteria(criteria);
+  }, [setPasswordStrength, setPasswordCriteria]);
 
   const profileForm = useForm<ProfileFormValues>({
     resolver: zodResolver(profileSchema),
@@ -58,6 +95,18 @@ export default function ProfilePage() {
       confirmPassword: "",
     }
   });
+  
+  // Listen for password changes to update strength indicator
+  useEffect(() => {
+    const subscription = passwordForm.watch((value) => {
+      // Check if password exists and update strength
+      if (value.password) {
+        checkPasswordStrength(value.password);
+      }
+    });
+    
+    return () => subscription.unsubscribe();
+  }, [passwordForm, checkPasswordStrength]);
 
   const updateProfileMutation = useMutation({
     mutationFn: async (data: ProfileFormValues) => {
@@ -212,6 +261,56 @@ export default function ProfilePage() {
                       <FormControl>
                         <Input type="password" placeholder="••••••" className="border-slate-300" {...field} />
                       </FormControl>
+                      
+                      {/* Password strength indicator */}
+                      {field.value && (
+                        <>
+                          <div className="mt-2 space-y-2">
+                            <div className="flex items-center gap-2">
+                              <Progress value={passwordStrength} className="h-2" />
+                              <span className="text-xs font-medium">
+                                {passwordStrength === 0 && "Very Weak"}
+                                {passwordStrength > 0 && passwordStrength <= 25 && "Weak"}
+                                {passwordStrength > 25 && passwordStrength <= 50 && "Fair"}
+                                {passwordStrength > 50 && passwordStrength <= 75 && "Good"}
+                                {passwordStrength > 75 && "Strong"}
+                              </span>
+                            </div>
+                            
+                            <div className="grid grid-cols-2 gap-2 text-xs">
+                              <div className="flex items-center gap-1">
+                                {passwordCriteria.length ? 
+                                  <Check className="h-3 w-3 text-green-500" /> : 
+                                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                                }
+                                <span>At least 8 characters</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {passwordCriteria.uppercase ? 
+                                  <Check className="h-3 w-3 text-green-500" /> : 
+                                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                                }
+                                <span>Uppercase letter</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {passwordCriteria.number ? 
+                                  <Check className="h-3 w-3 text-green-500" /> : 
+                                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                                }
+                                <span>Number</span>
+                              </div>
+                              <div className="flex items-center gap-1">
+                                {passwordCriteria.special ? 
+                                  <Check className="h-3 w-3 text-green-500" /> : 
+                                  <AlertCircle className="h-3 w-3 text-amber-500" />
+                                }
+                                <span>Special character</span>
+                              </div>
+                            </div>
+                          </div>
+                        </>
+                      )}
+                      
                       <FormMessage />
                     </FormItem>
                   )}

@@ -1,14 +1,30 @@
 import { PageWrapper } from "@/components/layout/page-wrapper";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/hooks/use-auth";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Link } from "wouter";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
-import { GraduationCap, Book, ArrowRight, Calendar, Edit, Eye } from "lucide-react";
+import { 
+  GraduationCap, 
+  Book, 
+  ArrowRight, 
+  Calendar, 
+  Edit, 
+  Eye, 
+  Check, 
+  Clock, 
+  Download,
+  PieChart,
+  BarChart,
+  Users,
+  Activity 
+} from "lucide-react";
 import { formatDate } from "@/lib/utils";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Progress } from "@/components/ui/progress";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { PlanningWeek, TeacherWithAssignments } from "@shared/schema";
 
 export default function TeacherDashboard() {
@@ -39,8 +55,80 @@ export default function TeacherDashboard() {
     enabled: !!user,
   });
   
+  // Calculate statistics
+  const totalGrades = teacherData?.grades.length || 0;
+  const totalSubjects = Object.values(teacherData?.subjects || {}).flat().length || 0;
+  const totalPlans = weeklyPlans.length || 0;
+  const completionRate = totalPlans > 0 
+    ? Math.round((weeklyPlans.filter(plan => 
+        plan.dailyPlans && plan.dailyPlans.length >= 5).length / totalPlans) * 100) 
+    : 0;
+
   return (
     <PageWrapper title="Dashboard">
+      {/* Stats Overview */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-neutral-500">Assigned Grades</p>
+                <h3 className="text-2xl font-bold mt-1">{totalGrades}</h3>
+              </div>
+              <div className="h-12 w-12 bg-blue-100 rounded-full flex items-center justify-center">
+                <GraduationCap className="h-6 w-6 text-primary" />
+              </div>
+            </div>
+            <Progress value={totalGrades > 0 ? 100 : 0} className="h-1 mt-3" />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-neutral-500">Assigned Subjects</p>
+                <h3 className="text-2xl font-bold mt-1">{totalSubjects}</h3>
+              </div>
+              <div className="h-12 w-12 bg-green-100 rounded-full flex items-center justify-center">
+                <Book className="h-6 w-6 text-green-600" />
+              </div>
+            </div>
+            <Progress value={totalSubjects > 0 ? 100 : 0} className="h-1 mt-3 bg-green-100" />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-neutral-500">Weekly Plans</p>
+                <h3 className="text-2xl font-bold mt-1">{totalPlans}</h3>
+              </div>
+              <div className="h-12 w-12 bg-purple-100 rounded-full flex items-center justify-center">
+                <Calendar className="h-6 w-6 text-purple-600" />
+              </div>
+            </div>
+            <Progress value={totalPlans > 0 ? 100 : 0} className="h-1 mt-3 bg-purple-100" />
+          </CardContent>
+        </Card>
+        
+        <Card>
+          <CardContent className="p-6">
+            <div className="flex justify-between items-center">
+              <div>
+                <p className="text-sm font-medium text-neutral-500">Completion Rate</p>
+                <h3 className="text-2xl font-bold mt-1">{completionRate}%</h3>
+              </div>
+              <div className="h-12 w-12 bg-amber-100 rounded-full flex items-center justify-center">
+                <Activity className="h-6 w-6 text-amber-600" />
+              </div>
+            </div>
+            <Progress value={completionRate} className="h-1 mt-3 bg-amber-100" />
+          </CardContent>
+        </Card>
+      </div>
+      
       <div className="mb-8">
         <h2 className="text-xl font-medium text-neutral-800 mb-4">My Assigned Grades</h2>
         {isLoadingTeacherData ? (
@@ -118,7 +206,7 @@ export default function TeacherDashboard() {
                           {formatDate(new Date(week.startDate))} - {formatDate(new Date(week.endDate))}
                         </TableCell>
                         <TableCell>
-                          <Badge variant="success">Active</Badge>
+                          <Badge className="bg-green-100 text-green-700 hover:bg-green-200">Active</Badge>
                         </TableCell>
                         <TableCell className="text-right">
                           <Button variant="link" className="text-primary" asChild>
@@ -177,6 +265,13 @@ export default function TeacherDashboard() {
                         <TableCell>{formatDate(new Date(plan.createdAt))}</TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end space-x-2">
+                            <Button 
+                              variant="outline" 
+                              size="sm"
+                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                            </Button>
                             <Button variant="outline" size="sm" asChild>
                               <Link href={`/plan-editor/${plan.id}`}>
                                 <Edit className="h-4 w-4 mr-1" /> Edit
