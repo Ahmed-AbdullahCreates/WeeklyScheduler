@@ -2,7 +2,65 @@ import PDFDocument from 'pdfkit';
 import { WeeklyPlanComplete, WeeklyPlanWithDetails, Grade, Subject, User, PlanningWeek, DailyPlan, DailyPlanData } from '@shared/schema';
 import { mapDayNumberToName } from '../../client/src/lib/utils';
 
-// Function to generate a PDF for a weekly plan with enhanced formatting
+// Helper functions for PDF generation
+// Get daily plan by day number
+function getDailyPlanByDayNumber(dailyPlans: DailyPlanData, dayNumber: number): DailyPlan | undefined {
+  switch (dayNumber) {
+    case 1: return dailyPlans.monday;
+    case 2: return dailyPlans.tuesday;
+    case 3: return dailyPlans.wednesday;
+    case 4: return dailyPlans.thursday;
+    case 5: return dailyPlans.friday;
+    default: return undefined;
+  }
+}
+
+// Format a date range by adding 4 days to the start date
+function formatDateRange(startDate: string): string {
+  try {
+    const start = new Date(startDate);
+    const end = new Date(start);
+    end.setDate(start.getDate() + 4); // Assuming 5 days (end date is 4 days after start)
+    
+    return `${formatDate(start)} - ${formatDate(end)}`;
+  } catch (e) {
+    return 'Invalid date range';
+  }
+}
+
+// Format a date in a consistent way
+function formatDate(date: string | Date): string {
+  try {
+    const dateObj = typeof date === 'string' ? new Date(date) : date;
+    return dateObj.toLocaleDateString('en-US', { 
+      year: 'numeric', 
+      month: 'short', 
+      day: 'numeric' 
+    });
+  } catch (e) {
+    return 'Invalid date';
+  }
+}
+
+// Calculate approximate content height based on plan fields
+function getPlanContentHeight(plan: DailyPlan): number {
+  let height = 30; // Base height for topic
+  
+  if (plan.booksAndPages) height += 30;
+  if (plan.homework) height += 30;
+  if (plan.assignments) height += 30;
+  if (plan.homeworkDueDate) height += 30;
+  
+  // Notes can be longer so allocate more space
+  if (plan.notes) {
+    const estimatedLines = Math.ceil(plan.notes.length / 50); // Rough estimate: 50 chars per line
+    height += 25 + (estimatedLines * 15);
+  }
+  
+  return height + 30; // Add padding
+}
+
+// Generate PDF for a weekly plan with enhanced formatting
 export function generateWeeklyPlanPDF(
   weeklyPlanData: WeeklyPlanComplete,
   teacherName: string,
@@ -29,8 +87,10 @@ export function generateWeeklyPlanPDF(
         }
       });
 
-      // Create a buffer to store the PDF
+      // Array to store PDF data chunks
       const chunks: Buffer[] = [];
+      
+      // Setup document event handlers
       doc.on('data', (chunk: Buffer) => chunks.push(chunk));
       doc.on('end', () => resolve(Buffer.concat(chunks)));
       doc.on('error', reject);
@@ -65,6 +125,60 @@ export function generateWeeklyPlanPDF(
       const gray = '#6b7280';
       const lightGray = '#f3f4f6';
       const darkGray = '#374151';
+
+      // Create a helper function to add footers (defined outside the block to avoid TypeScript block-scoped errors)
+      const addFooter = (doc: PDFKit.PDFDocument, pageNumber: number) => {
+        const totalPages = doc.bufferedPageRange().count;
+        
+        doc.switchToPage(pageNumber);
+        
+        // Skip footer on cover page
+        if (pageNumber === 0) return;
+        
+        // Footer line
+        doc.moveTo(40, doc.page.height - 50)
+           .lineTo(doc.page.width - 40, doc.page.height - 50)
+           .strokeColor('#e5e7eb')
+           .stroke();
+        
+        // Footer text
+        doc.fontSize(8)
+           .font('Helvetica')
+           .fillColor('#9ca3af')
+           .text(
+              `${gradeName} - ${subjectName} - Week ${weekNumber}`,
+              40,
+              doc.page.height - 40,
+              { align: 'left', width: 200 }
+           )
+           .text(
+              'Weekly Planner System for Schools',
+              doc.page.width / 2 - 100,
+              doc.page.height - 40,
+              { align: 'center', width: 200 }
+           )
+           .text(
+              `Page ${pageNumber + 1} of ${totalPages}`,
+              doc.page.width - 40 - 100,
+              doc.page.height - 40,
+              { align: 'right', width: 100 }
+           );
+      };
+
+      // Create a helper for checklist items
+      const addChecklistItem = (label: string, isIncluded: boolean) => {
+        const checkChar = isIncluded ? '✓' : '✗';
+        const color = isIncluded ? secondaryColor : '#d1d5db';
+        
+        doc.fontSize(10)
+           .font('Helvetica-Bold')
+           .fillColor(color)
+           .text(checkChar, 50, doc.y, { continued: true, width: 15 })
+           .font('Helvetica')
+           .fillColor(darkGray)
+           .text(`  ${label}`, { continued: false })
+           .moveDown(0.3);
+      };
 
       // Add a cover page
       // Cover page background
@@ -103,25 +217,24 @@ export function generateWeeklyPlanPDF(
       doc.fontSize(24)
          .font('Helvetica')
          .fillColor(darkGray)
-         .text(`${subjectName}`, 0, 320, { align: 'center' })
-         .moveDown(0.3);
+         .text(`${subjectName}`, 0, 320, { align: 'center' });
       
       doc.fontSize(20)
          .fillColor(darkGray)
-         .text(`${gradeName}`, 0, null, { align: 'center' })
+         .text(`${gradeName}`, { align: 'center' })
          .moveDown(0.3);
          
       // Week information
       doc.fontSize(18)
          .font('Helvetica-Bold')
          .fillColor(primaryColor)
-         .text(`Week ${weekNumber} - ${weekYear}`, 0, null, { align: 'center' })
+         .text(`Week ${weekNumber} - ${weekYear}`, { align: 'center' })
          .moveDown(0.2);
       
       doc.fontSize(14)
          .font('Helvetica')
          .fillColor(darkGray)
-         .text(`${formatDateRange(startDate)}`, 0, null, { align: 'center' })
+         .text(`${formatDateRange(startDate)}`, { align: 'center' })
          .moveDown(2);
       
       // Teacher information box
@@ -184,7 +297,7 @@ export function generateWeeklyPlanPDF(
       doc.fontSize(11)
          .font('Helvetica')
          .fillColor(gray)
-         .text('At-a-glance view of the weekly plan', 60, null)
+         .text('At-a-glance view of the weekly plan', 60, doc.y)
          .moveDown(0.5);
       
       // Define weekdays for TOC and add entries for each day
@@ -198,20 +311,20 @@ export function generateWeeklyPlanPDF(
         
         const dayName = mapDayNumberToName(day);
         const hasContent = !!dailyPlan;
-        const topicPreview = hasContent ? 
+        const topicPreview = hasContent && dailyPlan.topic ? 
           (dailyPlan.topic.length > 40 ? dailyPlan.topic.substring(0, 37) + '...' : dailyPlan.topic) : 
           'No plan for this day';
         
         doc.fontSize(12)
            .font('Helvetica-Bold')
            .fillColor(darkGray)
-           .text(dayName, 40, null)
+           .text(dayName, 40, doc.y)
            .moveUp();
           
         doc.fontSize(10)
            .font('Helvetica')
            .fillColor(hasContent ? gray : '#d1d5db')
-           .text(topicPreview, 150, null)
+           .text(topicPreview, 150, doc.y)
            .moveDown(0.3);
            
         // Draw a dot for completion status
@@ -226,7 +339,7 @@ export function generateWeeklyPlanPDF(
       doc.fontSize(14)
          .font('Helvetica-Bold')
          .fillColor(darkGray)
-         .text('Plan Elements Included', 40, null)
+         .text('Plan Elements Included', 40, doc.y)
          .moveDown(0.5);
       
       // Track which elements are present in any of the daily plans
@@ -235,21 +348,6 @@ export function generateWeeklyPlanPDF(
       const hasAssignments = Object.values(weeklyPlanData.dailyPlans).some(plan => !!plan && !!plan.assignments);
       const hasDueDates = Object.values(weeklyPlanData.dailyPlans).some(plan => !!plan && !!plan.homeworkDueDate);
       const hasNotes = Object.values(weeklyPlanData.dailyPlans).some(plan => !!plan && !!plan.notes);
-      
-      // Helper for checklist items
-      const addChecklistItem = (label: string, isIncluded: boolean) => {
-        const checkChar = isIncluded ? '✓' : '✗';
-        const color = isIncluded ? secondaryColor : '#d1d5db';
-        
-        doc.fontSize(10)
-           .font('Helvetica-Bold')
-           .fillColor(color)
-           .text(checkChar, 50, null, { continued: true, width: 15 })
-           .font('Helvetica')
-           .fillColor(darkGray)
-           .text(`  ${label}`, { continued: false })
-           .moveDown(0.3);
-      };
       
       addChecklistItem('Daily Topics', true); // Always included
       addChecklistItem('Books & Pages References', hasBooks);
@@ -265,18 +363,18 @@ export function generateWeeklyPlanPDF(
         doc.fontSize(14)
            .font('Helvetica-Bold')
            .fillColor(darkGray)
-           .text('Special Instructions', 40, null)
+           .text('Special Instructions', 40, doc.y)
            .moveDown(0.5);
       
         doc.fontSize(10)
            .font('Helvetica-Italic')
            .fillColor(gray)
-           .text(weeklyPlanData.weeklyPlan.notes, 50, null, { width: doc.page.width - 100 })
+           .text(weeklyPlanData.weeklyPlan.notes, 50, doc.y, { width: doc.page.width - 100 })
            .moveDown(1);
       }
       
       // Add footer to TOC page
-      addFooter(1);
+      addFooter(doc, 1);
       
       // Start the daily plan pages
       doc.addPage();
@@ -620,7 +718,7 @@ export function generateWeeklyPlanPDF(
           // Suggestion text
           doc.fontSize(9)
              .fillColor('#9ca3af')
-             .text('Add a plan for this day to complete your weekly planning.', 60, null, { continued: false })
+             .text('Add a plan for this day to complete your weekly planning.', 60, doc.y, { continued: false })
              .moveDown(0.2);
         }
         
@@ -647,7 +745,7 @@ export function generateWeeklyPlanPDF(
       });
       
       // If there's additional notes attached to the weekly plan, add them
-      if (weeklyPlanData.weeklyPlan.notes) {
+      if (weeklyPlanData.weeklyPlan.notes && weeklyPlanData.weeklyPlan.notes.trim() !== '') {
         // Check if we need a new page
         if (doc.y > doc.page.height - 200) {
           doc.addPage();
@@ -686,46 +784,7 @@ export function generateWeeklyPlanPDF(
       // Add footers to all pages
       const pageCount = doc.bufferedPageRange().count;
       for (let i = 0; i < pageCount; i++) {
-        addFooter(i);
-      }
-      
-      // Helper function to add consistent footers
-      function addFooter(pageNumber: number) {
-        const totalPages = doc.bufferedPageRange().count;
-        
-        doc.switchToPage(pageNumber);
-        
-        // Skip footer on cover page
-        if (pageNumber === 0) return;
-        
-        // Footer line
-        doc.moveTo(40, doc.page.height - 50)
-           .lineTo(doc.page.width - 40, doc.page.height - 50)
-           .strokeColor('#e5e7eb')
-           .stroke();
-        
-        // Footer text
-        doc.fontSize(8)
-           .font('Helvetica')
-           .fillColor('#9ca3af')
-           .text(
-              `${gradeName} - ${subjectName} - Week ${weekNumber}`,
-              40,
-              doc.page.height - 40,
-              { align: 'left', width: 200 }
-           )
-           .text(
-              'Weekly Planner System for Schools',
-              doc.page.width / 2 - 100,
-              doc.page.height - 40,
-              { align: 'center', width: 200 }
-           )
-           .text(
-              `Page ${pageNumber + 1} of ${totalPages}`,
-              doc.page.width - 40 - 100,
-              doc.page.height - 40,
-              { align: 'right', width: 100 }
-           );
+        addFooter(doc, i);
       }
       
       // Finalize the PDF
@@ -735,75 +794,4 @@ export function generateWeeklyPlanPDF(
       reject(error);
     }
   });
-}
-
-// Helper functions
-
-// Format a date range by adding 4 days to the start date
-function formatDateRange(startDate: string): string {
-  try {
-    const start = new Date(startDate);
-    const end = new Date(start);
-    end.setDate(start.getDate() + 4); // Assuming 5 days (end date is 4 days after start)
-    
-    return `${formatDate(start)} - ${formatDate(end)}`;
-  } catch (e) {
-    return 'Invalid date range';
-  }
-}
-
-// Format a date in a consistent way
-function formatDate(date: string | Date): string {
-  try {
-    const dateObj = typeof date === 'string' ? new Date(date) : date;
-    return dateObj.toLocaleDateString('en-US', { 
-      year: 'numeric', 
-      month: 'short', 
-      day: 'numeric' 
-    });
-  } catch (e) {
-    return 'Invalid date';
-  }
-}
-
-// Calculate approximate content height based on plan fields
-function getPlanContentHeight(plan: DailyPlan): number {
-  let height = 30; // Base height for topic
-  
-  if (plan.booksAndPages) height += 30;
-  if (plan.homework) height += 30;
-  if (plan.assignments) height += 30;
-  if (plan.homeworkDueDate) height += 30;
-  
-  // Notes can be longer so allocate more space
-  if (plan.notes) {
-    const estimatedLines = Math.ceil(plan.notes.length / 50); // Rough estimate: 50 chars per line
-    height += 25 + (estimatedLines * 15);
-  }
-  
-  return height + 30; // Add padding
-}
-
-// Helper function to get the daily plan for a specific day number
-function getDailyPlanByDayNumber(dailyPlans: DailyPlanData, dayNumber: number): DailyPlan | undefined {
-  switch (dayNumber) {
-    case 1: return dailyPlans.monday;
-    case 2: return dailyPlans.tuesday;
-    case 3: return dailyPlans.wednesday;
-    case 4: return dailyPlans.thursday;
-    case 5: return dailyPlans.friday;
-    default: return undefined;
-  }
-}
-
-// Helper function to get the daily plan for a specific day number
-function getDailyPlanByDayNumber(dailyPlans: DailyPlanData, dayNumber: number): DailyPlan | undefined {
-  switch (dayNumber) {
-    case 1: return dailyPlans.monday;
-    case 2: return dailyPlans.tuesday;
-    case 3: return dailyPlans.wednesday;
-    case 4: return dailyPlans.thursday;
-    case 5: return dailyPlans.friday;
-    default: return undefined;
-  }
 }

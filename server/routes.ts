@@ -5,7 +5,7 @@ import { setupAuth } from "./auth";
 import { z } from "zod";
 import multer from "multer";
 import { parseUsersCsv, processUserImport } from "./utils/csv-import";
-import { generateWeeklyPlanPDF } from "./utils/pdf-generator";
+import { generateWeeklyPlanPDF } from "./utils/enhanced-pdf-generator";
 import {
   insertGradeSchema,
   insertSubjectSchema,

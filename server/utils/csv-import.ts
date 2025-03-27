@@ -111,40 +111,87 @@ export async function parseUsersCsv(buffer: Buffer): Promise<{
     });
 
     parser.on('readable', function() {
-      let record: Record<string, unknown>;
+      let record: Record<string, unknown> | null;
       let index = rowCount;
       
-      // Type safe version of parser.read()
-      while ((record = parser.read() as Record<string, unknown> | null) !== null) {
+      // Read record safely with proper type handling
+      while ((record = parser.read()) !== null) {
         rowCount++;
+        
+        // Skip record if it's not an object (though this is unlikely)
+        if (typeof record !== 'object' || record === null) {
+          errors.push(`Row ${index + 1}: Invalid record format`);
+          continue;
+        }
         
         // Normalize keys (make case-insensitive)
         const normalizedRecord: CsvRecord = {};
         
-        // Type guard to ensure we're working with string keys
+        // Enhanced key mapping
+        const keyMap: Record<string, string> = {
+          // Username variations
+          'user': 'username',
+          'username': 'username',
+          'user name': 'username',
+          'userid': 'username',
+          'user id': 'username',
+          'login': 'username',
+          
+          // Name variations
+          'name': 'fullName',
+          'full name': 'fullName',
+          'fullname': 'fullName',
+          'displayname': 'fullName',
+          'display name': 'fullName',
+          'teacher name': 'fullName',
+          'teachername': 'fullName',
+          
+          // Email variations
+          'mail': 'email',
+          'email': 'email',
+          'e-mail': 'email',
+          'emailaddress': 'email',
+          'email address': 'email',
+          
+          // Role variations
+          'admin': 'role',
+          'role': 'role',
+          'user role': 'role',
+          'userrole': 'role',
+          'user type': 'role',
+          'usertype': 'role',
+          'type': 'role',
+          'access': 'role',
+          'isadmin': 'role',
+          'is admin': 'role',
+          'teacher type': 'role',
+          
+          // Password variations
+          'pwd': 'password',
+          'pass': 'password',
+          'password': 'password',
+          'secret': 'password',
+          'credentials': 'password'
+        };
+        
+        // Process each field in the record
         Object.entries(record).forEach(([key, value]) => {
           const normalizedKey = key.toLowerCase().trim();
-          
-          // Map common variations to standard field names
-          const keyMap: Record<string, string> = {
-            'user': 'username',
-            'name': 'fullName',
-            'full name': 'fullName',
-            'fullname': 'fullName',
-            'mail': 'email',
-            'admin': 'role',
-            'user role': 'role',
-            'userrole': 'role',
-            'user type': 'role',
-            'usertype': 'role',
-            'pwd': 'password',
-            'pass': 'password'
-          };
-          
           const mappedKey = keyMap[normalizedKey] || normalizedKey;
           
-          // Safe string conversion
-          if (value !== null && value !== undefined) {
+          // Special handling for role field to normalize values
+          if (mappedKey === 'role' && value !== null && value !== undefined) {
+            // Convert all role variations to standard formats
+            const roleValue = String(value).toLowerCase().trim();
+            if (roleValue === 'yes' || roleValue === 'true' || roleValue === '1' || 
+                roleValue === 'y' || roleValue === 'admin' || roleValue === 'administrator') {
+              normalizedRecord.role = 'admin';
+            } else {
+              normalizedRecord.role = 'teacher';
+            }
+          } 
+          // Normal field processing
+          else if (value !== null && value !== undefined) {
             normalizedRecord[mappedKey] = typeof value === 'string' ? value.trim() : String(value);
           }
         });

@@ -91,6 +91,7 @@ export const weeklyPlans = pgTable("weekly_plans", {
   gradeId: integer("grade_id").notNull(),
   subjectId: integer("subject_id").notNull(),
   weekId: integer("week_id").notNull(),
+  notes: text("notes"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
@@ -100,6 +101,7 @@ export const insertWeeklyPlanSchema = createInsertSchema(weeklyPlans).pick({
   gradeId: true,
   subjectId: true,
   weekId: true,
+  notes: true,
 });
 
 // Daily plan entries (within weekly plans)
