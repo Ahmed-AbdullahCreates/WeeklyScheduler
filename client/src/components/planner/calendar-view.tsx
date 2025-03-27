@@ -49,7 +49,11 @@ export default function CalendarView({ isAdmin = false }: CalendarViewProps) {
 
   // Fetch weekly plans based on selected grade and week
   const { data: weeklyPlans = [], isLoading: isLoadingPlans } = useQuery<WeeklyPlanWithDetails[]>({
-    queryKey: ['/api/weekly-plans/grade', selectedGrade, 'week', selectedWeek],
+    queryKey: ['/api/weekly-plans/grade', 
+      selectedGrade !== 'placeholder' ? parseInt(selectedGrade) : null, 
+      'week', 
+      selectedWeek !== 'placeholder' ? parseInt(selectedWeek) : null
+    ],
     enabled: selectedGrade !== 'placeholder' && selectedWeek !== 'placeholder',
   });
 

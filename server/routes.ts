@@ -403,8 +403,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.get("/api/weekly-plans/grade/:gradeId/week/:weekId", isAuthenticated, async (req, res) => {
+    // Check if params are valid integers
+    if (req.params.gradeId === 'null' || req.params.weekId === 'null') {
+      return res.status(400).json({ message: "Invalid grade or week ID" });
+    }
+    
     const gradeId = parseInt(req.params.gradeId);
     const weekId = parseInt(req.params.weekId);
+    
+    // Validate that IDs are valid integers
+    if (isNaN(gradeId) || isNaN(weekId)) {
+      return res.status(400).json({ message: "Invalid grade or week ID" });
+    }
     
     // If user is a teacher, verify they have access to this grade
     const user = req.user as User;
@@ -423,6 +433,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/weekly-plans/:id", isAuthenticated, async (req, res) => {
     const id = parseInt(req.params.id);
+    
+    // Validate that ID is a valid integer
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid plan ID" });
+    }
+    
     const plan = await storage.getWeeklyPlanById(id);
     
     if (!plan) {
@@ -440,6 +456,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/weekly-plans/:id/complete", isAuthenticated, async (req, res) => {
     const id = parseInt(req.params.id);
+    
+    // Validate that ID is a valid integer
+    if (isNaN(id)) {
+      return res.status(400).json({ message: "Invalid plan ID" });
+    }
+    
     const planComplete = await storage.getWeeklyPlanComplete(id);
     
     if (!planComplete) {
