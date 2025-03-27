@@ -4,6 +4,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import NotFound from "@/pages/not-found";
 import AuthPage from "@/pages/auth-page";
+import ProfilePage from "@/pages/profile-page";
 import { ProtectedRoute } from "@/lib/protected-route";
 import AdminDashboard from "@/pages/admin/dashboard";
 import AdminTeachers from "@/pages/admin/teachers";
@@ -23,6 +24,9 @@ function Router() {
     <Switch>
       {/* Auth Page */}
       <Route path="/auth" component={AuthPage} />
+      
+      {/* Common Routes */}
+      <ProtectedRoute path="/profile" component={ProfilePage} />
       
       {/* Routes based on user role */}
       {user?.isAdmin ? (

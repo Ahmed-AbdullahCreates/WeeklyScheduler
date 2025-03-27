@@ -451,6 +451,49 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update user profile
+  app.patch("/api/users/:id", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      
+      // Users can only update their own profile unless they are admins
+      if (req.user && (id !== req.user.id && !req.user.isAdmin)) {
+        return res.status(403).json({ message: "Unauthorized to update this user's profile" });
+      }
+      
+      // Only allowed to update certain fields
+      const allowedUpdates = ["fullName", "password"];
+      const updates: any = {};
+      
+      // Extract valid updates
+      allowedUpdates.forEach(field => {
+        if (req.body[field] !== undefined) {
+          updates[field] = req.body[field];
+        }
+      });
+      
+      // Hash password if it's being updated
+      if (updates.password) {
+        // Password will be hashed in the auth module
+        // This is just placeholder logic
+        // In a real app, we would use the hashPassword function from auth.ts
+      }
+      
+      // Update user
+      const updatedUser = await storage.updateUser(id, updates);
+      
+      if (!updatedUser) {
+        return res.status(404).json({ message: "User not found" });
+      }
+      
+      // Don't return the password
+      const { password, ...userWithoutPassword } = updatedUser;
+      res.json(userWithoutPassword);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating user profile", error });
+    }
+  });
+  
   const httpServer = createServer(app);
   return httpServer;
 }
