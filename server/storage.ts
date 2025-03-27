@@ -162,6 +162,7 @@ export class MemStorage implements IStorage {
     const user: User = { 
       ...insertUser, 
       id,
+      email: insertUser.email || null,
       isAdmin: insertUser.isAdmin || false 
     };
     this.users.set(id, user);

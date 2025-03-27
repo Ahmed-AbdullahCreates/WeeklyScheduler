@@ -3,6 +3,8 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { setupAuth } from "./auth";
 import { z } from "zod";
+import multer from "multer";
+import { parseUsersCsv, processUserImport } from "./utils/csv-import";
 import {
   insertGradeSchema,
   insertSubjectSchema,
@@ -88,6 +90,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
     } catch (error) {
       res.status(400).json({ message: "Invalid request data", error });
+    }
+  });
+  
+  // CSV User Import
+  const upload = multer({ 
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 2 * 1024 * 1024 } // 2MB file size limit
+  });
+  
+  app.post("/api/users/import", isAdmin, upload.single('file'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ message: "No file uploaded" });
+      }
+      
+      if (req.file.mimetype !== 'text/csv') {
+        return res.status(400).json({ message: "File must be a CSV" });
+      }
+      
+      // Parse and process the CSV file
+      const usersData = await parseUsersCsv(req.file.buffer);
+      if (usersData.length === 0) {
+        return res.status(400).json({ message: "No valid user records found in CSV" });
+      }
+      
+      // Hash passwords and create users
+      const processedUsers = await processUserImport(usersData);
+      const createdUsers = [];
+      
+      for (const userData of processedUsers) {
+        try {
+          // Check for duplicate usernames
+          const existingUser = await storage.getUserByUsername(userData.username);
+          if (existingUser) {
+            continue; // Skip this user
+          }
+          
+          const user = await storage.createUser(userData);
+          createdUsers.push(user);
+        } catch (err) {
+          console.error(`Error creating user ${userData.username}:`, err);
+          // Continue with the next user
+        }
+      }
+      
+      res.status(201).json({ 
+        message: `Successfully imported ${createdUsers.length} users`,
+        totalProcessed: processedUsers.length,
+        usersCreated: createdUsers.length
+      });
+    } catch (error) {
+      console.error("Error importing users:", error);
+      res.status(500).json({ message: "Error importing users", error: (error as Error).message });
     }
   });
   

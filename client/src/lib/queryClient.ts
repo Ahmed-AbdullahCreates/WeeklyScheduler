@@ -48,14 +48,18 @@ export async function apiRequest(
     retryOnUnauthorized?: boolean;
     headers?: Record<string, string>;
     cacheResponse?: boolean;
+    body?: BodyInit;
+    formData?: boolean;
   } = {},
 ): Promise<Response> {
   const { 
     retryOnUnauthorized = true, 
     headers = {}, 
-    cacheResponse = false 
+    cacheResponse = false,
+    body = undefined,
+    formData = false
   } = options;
-  const requestKey = `${method}:${url}:${JSON.stringify(data)}`;
+  const requestKey = `${method}:${url}:${formData ? 'formData' : JSON.stringify(data)}`;
   
   try {
     // Add timestamp to bust cache for GET requests if not explicitly cached
@@ -63,13 +67,31 @@ export async function apiRequest(
       ? `${url}${url.includes('?') ? '&' : '?'}_t=${Date.now()}` 
       : url;
     
+    // Determine what to send in the body and what content-type to use
+    let requestBody: BodyInit | undefined = undefined;
+    let contentTypeHeader = {};
+    
+    if (body) {
+      // If body is explicitly provided, use it directly
+      requestBody = body;
+    } else if (data) {
+      // Otherwise, use data and format according to formData flag
+      if (formData && data instanceof FormData) {
+        requestBody = data;
+        // Don't set Content-Type for FormData - browser will set with boundary
+      } else {
+        requestBody = JSON.stringify(data);
+        contentTypeHeader = { "Content-Type": "application/json" };
+      }
+    }
+    
     const res = await fetch(finalUrl, {
       method,
       headers: {
-        ...(data ? { "Content-Type": "application/json" } : {}),
+        ...(!formData && data ? contentTypeHeader : {}),
         ...headers,
       },
-      body: data ? JSON.stringify(data) : undefined,
+      body: requestBody,
       credentials: "include",
     });
 
@@ -139,6 +161,13 @@ async function handleSessionRefresh(
     }
     
     if (refreshResponse.ok) {
+      // For FormData requests, we can't retry them automatically since FormData can't be cloned
+      // Instead, return a 401 response which will cause the UI to prompt for re-authentication
+      if (requestKey.includes('formData')) {
+        console.warn('Cannot retry FormData requests after session refresh');
+        return originalResponse;
+      }
+      
       // Session is still valid, retry the original request
       const retryRes = await fetch(url, {
         method,
