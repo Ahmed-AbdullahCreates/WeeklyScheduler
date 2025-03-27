@@ -106,25 +106,59 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ message: "No file uploaded" });
       }
       
-      if (req.file.mimetype !== 'text/csv') {
-        return res.status(400).json({ message: "File must be a CSV" });
+      // Accept both text/csv and application/octet-stream (common when downloading from various sources)
+      const validMimeTypes = ['text/csv', 'application/octet-stream', 'application/vnd.ms-excel', 'text/plain'];
+      if (!validMimeTypes.includes(req.file.mimetype)) {
+        return res.status(400).json({ 
+          message: "Invalid file type. Please upload a CSV file.",
+          allowedTypes: "CSV files only" 
+        });
       }
       
-      // Parse and process the CSV file
-      const usersData = await parseUsersCsv(req.file.buffer);
+      // Check file extension as a secondary validation
+      const fileExtension = req.file.originalname.split('.').pop()?.toLowerCase();
+      if (fileExtension !== 'csv') {
+        return res.status(400).json({ 
+          message: "Invalid file extension. Please upload a file with .csv extension.",
+          allowedExtensions: ".csv" 
+        });
+      }
+      
+      // Parse and process the CSV file with improved validation
+      const { users: usersData, errors, warnings } = await parseUsersCsv(req.file.buffer);
+      
+      // Handle validation errors
+      if (errors.length > 0 && usersData.length === 0) {
+        return res.status(400).json({ 
+          message: "CSV validation failed with errors", 
+          errors,
+          warnings
+        });
+      }
+      
       if (usersData.length === 0) {
-        return res.status(400).json({ message: "No valid user records found in CSV" });
+        return res.status(400).json({ 
+          message: "No valid user records found in CSV", 
+          warnings,
+          errors
+        });
       }
       
       // Hash passwords and create users
       const processedUsers = await processUserImport(usersData);
       const createdUsers = [];
+      const skippedUsers = [];
+      const failedUsers = [];
       
       for (const userData of processedUsers) {
         try {
           // Check for duplicate usernames
           const existingUser = await storage.getUserByUsername(userData.username);
           if (existingUser) {
+            skippedUsers.push({
+              username: userData.username,
+              reason: "Username already exists"
+            });
             continue; // Skip this user
           }
           
@@ -132,18 +166,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
           createdUsers.push(user);
         } catch (err) {
           console.error(`Error creating user ${userData.username}:`, err);
+          failedUsers.push({
+            username: userData.username,
+            reason: (err as Error).message || "Unknown error"
+          });
           // Continue with the next user
         }
       }
       
-      res.status(201).json({ 
-        message: `Successfully imported ${createdUsers.length} users`,
+      // Determine appropriate status code
+      const statusCode = errors.length > 0 || skippedUsers.length > 0 || failedUsers.length > 0 
+        ? 207  // Multi-Status for partial success
+        : 201; // Created for complete success
+      
+      res.status(statusCode).json({ 
+        message: `Import completed: ${createdUsers.length} users created, ${skippedUsers.length} skipped, ${failedUsers.length} failed`,
         totalProcessed: processedUsers.length,
-        usersCreated: createdUsers.length
+        usersCreated: createdUsers.length,
+        skippedUsers: skippedUsers.length > 0 ? skippedUsers : undefined,
+        failedUsers: failedUsers.length > 0 ? failedUsers : undefined,
+        warnings: warnings.length > 0 ? warnings : undefined,
+        errors: errors.length > 0 ? errors : undefined
       });
     } catch (error) {
       console.error("Error importing users:", error);
-      res.status(500).json({ message: "Error importing users", error: (error as Error).message });
+      res.status(500).json({ 
+        message: "Error importing users", 
+        error: (error as Error).message 
+      });
     }
   });
   
