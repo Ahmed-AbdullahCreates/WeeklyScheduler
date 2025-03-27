@@ -11,12 +11,10 @@ import AdminTeachers from "@/pages/admin/teachers";
 import AdminGrades from "@/pages/admin/grades";
 import AdminSubjects from "@/pages/admin/subjects";
 import AdminWeeklyPlans from "@/pages/admin/weeklyplans";
-import AdminCalendar from "@/pages/admin/calendar";
 import TeacherDashboard from "@/pages/teacher/dashboard";
 import TeacherMyGrades from "@/pages/teacher/my-grades";
 import TeacherWeeklyPlans from "@/pages/teacher/weeklyplans";
 import TeacherPlanEditor from "@/pages/teacher/plan-editor";
-import TeacherCalendar from "@/pages/teacher/calendar";
 import { useAuth, AuthProvider } from "@/hooks/use-auth";
 import { Suspense, lazy, useEffect } from "react";
 import { Loader2 } from "lucide-react";
@@ -55,7 +53,6 @@ function RoleBasedRoutes() {
         <ProtectedRoute path="/grades" component={AdminGrades} />
         <ProtectedRoute path="/subjects" component={AdminSubjects} />
         <ProtectedRoute path="/weeklyplans" component={AdminWeeklyPlans} />
-        <ProtectedRoute path="/calendar" component={AdminCalendar} />
         <ProtectedRoute path="/profile" component={ProfilePage} />
         <Route path="/" component={AdminDashboard} />
         <Route component={NotFound} />
@@ -68,7 +65,6 @@ function RoleBasedRoutes() {
         <ProtectedRoute path="/dashboard" component={TeacherDashboard} />
         <ProtectedRoute path="/mygrades" component={TeacherMyGrades} />
         <ProtectedRoute path="/weeklyplans" component={TeacherWeeklyPlans} />
-        <ProtectedRoute path="/calendar" component={TeacherCalendar} />
         <ProtectedRoute path="/plan-editor/:planId" component={TeacherPlanEditor} />
         <ProtectedRoute path="/plan-editor" component={TeacherPlanEditor} />
         <ProtectedRoute path="/profile" component={ProfilePage} />

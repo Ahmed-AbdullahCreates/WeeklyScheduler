@@ -56,11 +56,6 @@ export function Sidebar({ className, setMobileOpen, ...props }: SidebarProps) {
           icon: CalendarIcon,
           title: "Weekly Plans",
         },
-        {
-          href: "/calendar",
-          icon: CalendarIcon,
-          title: "Calendar View",
-        },
       ]
     : [
         {
@@ -77,11 +72,6 @@ export function Sidebar({ className, setMobileOpen, ...props }: SidebarProps) {
           href: "/weeklyplans",
           icon: CalendarIcon,
           title: "Weekly Plans",
-        },
-        {
-          href: "/calendar",
-          icon: CalendarIcon,
-          title: "Calendar View",
         },
       ];
 

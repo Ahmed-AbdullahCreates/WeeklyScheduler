@@ -6,7 +6,6 @@ import { z } from "zod";
 import multer from "multer";
 import { parseUsersCsv, processUserImport } from "./utils/csv-import";
 import { generateWeeklyPlanPDF } from "./utils/pdf-generator";
-import { generateWeeklyPlanExcel } from "./utils/excel-generator";
 import {
   insertGradeSchema,
   insertSubjectSchema,
@@ -404,18 +403,8 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   app.get("/api/weekly-plans/grade/:gradeId/week/:weekId", isAuthenticated, async (req, res) => {
-    // Check if params are valid integers
-    if (req.params.gradeId === 'null' || req.params.weekId === 'null') {
-      return res.status(400).json({ message: "Invalid grade or week ID" });
-    }
-    
     const gradeId = parseInt(req.params.gradeId);
     const weekId = parseInt(req.params.weekId);
-    
-    // Validate that IDs are valid integers
-    if (isNaN(gradeId) || isNaN(weekId)) {
-      return res.status(400).json({ message: "Invalid grade or week ID" });
-    }
     
     // If user is a teacher, verify they have access to this grade
     const user = req.user as User;
@@ -434,12 +423,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/weekly-plans/:id", isAuthenticated, async (req, res) => {
     const id = parseInt(req.params.id);
-    
-    // Validate that ID is a valid integer
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid plan ID" });
-    }
-    
     const plan = await storage.getWeeklyPlanById(id);
     
     if (!plan) {
@@ -457,12 +440,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
   
   app.get("/api/weekly-plans/:id/complete", isAuthenticated, async (req, res) => {
     const id = parseInt(req.params.id);
-    
-    // Validate that ID is a valid integer
-    if (isNaN(id)) {
-      return res.status(400).json({ message: "Invalid plan ID" });
-    }
-    
     const planComplete = await storage.getWeeklyPlanComplete(id);
     
     if (!planComplete) {
@@ -644,11 +621,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
   // Export weekly plan to PDF
   app.get("/api/weekly-plans/:id/export-pdf", isAuthenticated, async (req, res) => {
     try {
-      // Validate ID parameter
       const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid weekly plan ID" });
-      }
       
       // Get the complete weekly plan data
       const planComplete = await storage.getWeeklyPlanComplete(id);
@@ -669,119 +642,30 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
       
       if (!weekDetails || !grade || !subject || !teacher) {
-        return res.status(500).json({ 
-          message: "Failed to retrieve required data for PDF generation",
-          details: "One or more required resources (week, grade, subject, or teacher) could not be found." 
-        });
+        return res.status(500).json({ message: "Failed to retrieve required data for PDF generation" });
       }
       
-      try {
-        // Generate the PDF with enhanced error handling
-        const pdfBuffer = await generateWeeklyPlanPDF(
-          planComplete,
-          teacher.fullName,
-          grade.name,
-          subject.name,
-          weekDetails.weekNumber,
-          weekDetails.year,
-          weekDetails.startDate
-        );
-        
-        // Set appropriate headers for PDF download
-        res.setHeader('Content-Type', 'application/pdf');
-        res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.pdf`);
-        res.setHeader('Content-Length', pdfBuffer.length);
-        
-        // Send the PDF
-        res.send(pdfBuffer);
-      } catch (pdfError) {
-        console.error("PDF Generation Error:", pdfError);
-        // Return a more specific error message for PDF generation issues
-        return res.status(500).json({ 
-          message: "Error generating PDF", 
-          error: (pdfError as Error).message,
-          cause: "There may be invalid or problematic data in the weekly plan that cannot be processed properly."
-        });
-      }
+      // Generate the PDF
+      const pdfBuffer = await generateWeeklyPlanPDF(
+        planComplete,
+        teacher.fullName,
+        grade.name,
+        subject.name,
+        weekDetails.weekNumber,
+        weekDetails.year,
+        weekDetails.startDate
+      );
+      
+      // Set response headers
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.pdf`);
+      res.setHeader('Content-Length', pdfBuffer.length);
+      
+      // Send the PDF
+      res.send(pdfBuffer);
     } catch (error) {
       console.error("Error exporting weekly plan:", error);
-      res.status(500).json({ 
-        message: "Error exporting weekly plan", 
-        error: (error as Error).message,
-        suggestion: "Please try again later or contact the system administrator."
-      });
-    }
-  });
-  
-  // Export weekly plan to Excel
-  app.get("/api/weekly-plans/:id/export-excel", isAuthenticated, async (req, res) => {
-    try {
-      // Validate ID parameter
-      const id = parseInt(req.params.id);
-      if (isNaN(id)) {
-        return res.status(400).json({ message: "Invalid weekly plan ID" });
-      }
-      
-      // Get the complete weekly plan data
-      const planComplete = await storage.getWeeklyPlanComplete(id);
-      if (!planComplete) {
-        return res.status(404).json({ message: "Weekly plan not found" });
-      }
-      
-      // Check permission
-      const user = req.user as User;
-      if (!user.isAdmin && planComplete.weeklyPlan.teacherId !== user.id) {
-        return res.status(403).json({ message: "You don't have access to this plan" });
-      }
-      
-      // Get additional data for the Excel
-      const weekDetails = await storage.getPlanningWeekById(planComplete.weeklyPlan.weekId);
-      const grade = await storage.getGradeById(planComplete.weeklyPlan.gradeId);
-      const subject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
-      const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
-      
-      if (!weekDetails || !grade || !subject || !teacher) {
-        return res.status(500).json({ 
-          message: "Failed to retrieve required data for Excel generation",
-          details: "One or more required resources (week, grade, subject, or teacher) could not be found." 
-        });
-      }
-      
-      try {
-        // Generate the Excel with error handling
-        const excelBuffer = await generateWeeklyPlanExcel(
-          planComplete,
-          teacher.fullName,
-          grade.name,
-          subject.name,
-          weekDetails.weekNumber,
-          weekDetails.year,
-          weekDetails.startDate
-        );
-        
-        // Set appropriate headers for Excel download
-        res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet');
-        res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${grade.name}-${subject.name}-week-${weekDetails.weekNumber}.xlsx`);
-        res.setHeader('Content-Length', excelBuffer.length);
-        
-        // Send the Excel
-        res.send(excelBuffer);
-      } catch (excelError) {
-        console.error("Excel Generation Error:", excelError);
-        // Return a specific error message for Excel generation issues
-        return res.status(500).json({ 
-          message: "Error generating Excel file", 
-          error: (excelError as Error).message,
-          cause: "There may be invalid or problematic data in the weekly plan that cannot be processed properly."
-        });
-      }
-    } catch (error) {
-      console.error("Error exporting weekly plan to Excel:", error);
-      res.status(500).json({ 
-        message: "Error exporting weekly plan to Excel", 
-        error: (error as Error).message,
-        suggestion: "Please try again later or contact the system administrator."
-      });
+      res.status(500).json({ message: "Error exporting weekly plan", error: (error as Error).message });
     }
   });
   

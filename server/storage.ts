@@ -2,10 +2,11 @@ import { users, User, InsertUser, Grade, InsertGrade, grades, subjects, InsertSu
 import session from "express-session";
 import createMemoryStore from "memorystore";
 import connectPgSimple from "connect-pg-simple";
+import { neon, neonConfig } from '@neondatabase/serverless';
 import pg from 'pg';
 const { Pool } = pg;
 import { eq, and, desc } from 'drizzle-orm';
-import { db } from './db';
+import { drizzle } from 'drizzle-orm/neon-http';
 
 // Setup PostgreSQL connection
 const pool = new Pool({
@@ -637,8 +638,10 @@ export class DatabaseStorage implements IStorage {
       createTableIfMissing: true
     });
     
-    // Use the db instance from the imported module
-    this.db = db;
+    // Initialize neon client for serverless PostgreSQL
+    neonConfig.fetchConnectionCache = true;
+    const client = neon(process.env.DATABASE_URL!);
+    this.db = drizzle(client);
   }
 
   // User management
