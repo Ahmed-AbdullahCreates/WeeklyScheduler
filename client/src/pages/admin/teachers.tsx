@@ -8,11 +8,11 @@ import { Badge } from "@/components/ui/badge";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Checkbox } from "@/components/ui/checkbox";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AlertDialog, AlertDialogAction, AlertDialogCancel, AlertDialogContent, AlertDialogDescription, AlertDialogFooter, AlertDialogHeader, AlertDialogTitle } from "@/components/ui/alert-dialog";
-import { Plus, Pencil, UserPlus, UserCheck, UserX, ShieldCheck, ShieldOff, Trash2, Upload } from "lucide-react";
+import { Plus, Pencil, UserPlus, UserCheck, UserX, ShieldCheck, ShieldOff, Trash2, Upload, X } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest, queryClient } from "@/lib/queryClient";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -21,6 +21,7 @@ import { useForm } from "react-hook-form";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useAuth } from "@/hooks/use-auth";
 import { UserImportCard } from "@/components/admin/user-import";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 const registerSchema = z.object({
   username: z.string().min(3, "Username must be at least 3 characters"),
@@ -39,6 +40,13 @@ export default function AdminTeachers() {
   const [isAssignSubjectOpen, setIsAssignSubjectOpen] = useState(false);
   const [isAddTeacherOpen, setIsAddTeacherOpen] = useState(false);
   const [isDeleteConfirmOpen, setIsDeleteConfirmOpen] = useState(false);
+  
+  // State for the subject assignment form
+  const [selectedGradeId, setSelectedGradeId] = useState<string>("");
+  const [selectedSubjectId, setSelectedSubjectId] = useState<string>("");
+  
+  // State for tracking teacher grades in UI
+  const [teacherGradesMap, setTeacherGradesMap] = useState<Record<number, Grade[]>>({});
   
   const form = useForm<RegisterFormValues>({
     resolver: zodResolver(registerSchema),
@@ -75,6 +83,31 @@ export default function AdminTeachers() {
     }
   });
   
+  // Prefetch teacher grades when component loads
+  useEffect(() => {
+    if (teachers.length > 0) {
+      // Create batched fetches for teacher grades
+      const fetchTeacherGrades = async () => {
+        for (const teacher of teachers) {
+          if (!teacherGradesMap[teacher.id]) {
+            try {
+              const res = await fetch(`/api/teacher-grades/${teacher.id}`);
+              const grades = await res.json();
+              setTeacherGradesMap(prev => ({
+                ...prev,
+                [teacher.id]: grades
+              }));
+            } catch (error) {
+              console.error(`Failed to fetch grades for teacher ${teacher.id}`, error);
+            }
+          }
+        }
+      };
+      
+      fetchTeacherGrades();
+    }
+  }, [teachers]);
+  
   // Add teacher
   const addTeacher = useMutation({
     mutationFn: async (data: RegisterFormValues) => {
@@ -105,11 +138,25 @@ export default function AdminTeachers() {
       const res = await apiRequest("POST", "/api/teacher-grades", { teacherId, gradeId });
       return await res.json();
     },
-    onSuccess: () => {
+    onSuccess: (_, variables) => {
       toast({
         title: "Success",
         description: "Grade assigned successfully",
       });
+      
+      // Get the latest teacher grades to update our UI
+      if (selectedTeacher) {
+        fetch(`/api/teacher-grades/${variables.teacherId}`)
+          .then(res => res.json())
+          .then(grades => {
+            // Update the local map with fresh data
+            setTeacherGradesMap(prev => ({
+              ...prev,
+              [variables.teacherId]: grades
+            }));
+          });
+      }
+      
       queryClient.invalidateQueries({ queryKey: ["/api/teacher-grades", selectedTeacher?.id] });
       setIsAssignGradeOpen(false);
     },
@@ -335,19 +382,82 @@ export default function AdminTeachers() {
                     </Badge>
                   </TableCell>
                   <TableCell>
-                    {/* Fetch assigned grades for each teacher */}
+                    {/* Enhanced teacher grades display with prefetched data */}
                     <div className="flex flex-wrap gap-1">
-                      {teacher.id === selectedTeacher?.id && teacherGrades.map(grade => (
-                        <Badge key={grade.id} variant="outline" className="mr-1">{grade.name}</Badge>
-                      ))}
-                      {teacher.id !== selectedTeacher?.id && (
+                      {teacher.id === selectedTeacher?.id ? (
+                        // This teacher is selected, show their grades from the query
+                        teacherGrades.length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {teacherGrades.map(grade => (
+                              <Badge key={grade.id} variant="outline" className="mr-1">
+                                {grade.name}
+                              </Badge>
+                            ))}
+                          </div>
+                        ) : (
+                          <span className="text-xs text-muted-foreground italic">No grades assigned</span>
+                        )
+                      ) : teacherGradesMap[teacher.id] ? (
+                        // This teacher has prefetched grades, show them directly
+                        teacherGradesMap[teacher.id].length > 0 ? (
+                          <div className="flex flex-wrap gap-1">
+                            {teacherGradesMap[teacher.id].map(grade => (
+                              <Badge key={grade.id} variant="outline" className="mr-1">
+                                {grade.name}
+                              </Badge>
+                            ))}
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs"
+                              onClick={() => setSelectedTeacher(teacher)}
+                              title="Manage assignments"
+                            >
+                              <Pencil className="h-3 w-3 mr-1" />
+                              Edit
+                            </Button>
+                          </div>
+                        ) : (
+                          <div className="flex items-center space-x-2">
+                            <span className="text-xs text-muted-foreground italic">None</span>
+                            <Button 
+                              variant="ghost" 
+                              size="sm" 
+                              className="h-6 text-xs"
+                              onClick={() => setSelectedTeacher(teacher)}
+                              title="Manage assignments"
+                            >
+                              <Plus className="h-3 w-3 mr-1" />
+                              Assign
+                            </Button>
+                          </div>
+                        )
+                      ) : (
+                        // Data is being loaded or hasn't been prefetched yet
                         <Button 
                           variant="ghost" 
                           size="sm" 
                           className="h-6 text-xs"
                           onClick={() => {
-                            setSelectedTeacher(teacher);
-                            // This triggers the API call to fetch teacher grades
+                            // Fetch teacher grades using the API
+                            fetch(`/api/teacher-grades/${teacher.id}`)
+                              .then(res => res.json())
+                              .then(grades => {
+                                // Store in the local map for quick access
+                                setTeacherGradesMap(prev => ({
+                                  ...prev,
+                                  [teacher.id]: grades
+                                }));
+                                // Set the selected teacher
+                                setSelectedTeacher(teacher);
+                              })
+                              .catch(error => {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to fetch teacher grades",
+                                  variant: "destructive",
+                                });
+                              });
                           }}
                         >
                           View Assignments
@@ -426,30 +536,100 @@ export default function AdminTeachers() {
       </Card>
       
       {/* Assign Grade Dialog */}
-      <Dialog open={isAssignGradeOpen} onOpenChange={setIsAssignGradeOpen}>
+      <Dialog open={isAssignGradeOpen} onOpenChange={(open) => {
+        setIsAssignGradeOpen(open);
+        if (!open) {
+          // Clear any UI state when closing the dialog
+          setSelectedTeacher(null);
+        }
+      }}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Assign Grade to Teacher</DialogTitle>
+            <DialogTitle>Manage Grade Assignments</DialogTitle>
             <DialogDescription>
-              Select grades to assign to {selectedTeacher?.fullName}.
+              Add or remove grade assignments for {selectedTeacher?.fullName}.
             </DialogDescription>
           </DialogHeader>
           <ScrollArea className="max-h-[300px] overflow-y-auto">
-            <div className="space-y-4">
+            <div className="space-y-4 py-2">
               {grades.map(grade => {
                 const isAssigned = teacherGrades.some(g => g.id === grade.id);
                 return (
-                  <div key={grade.id} className="flex items-center space-x-2">
-                    <Checkbox 
-                      id={`grade-${grade.id}`} 
-                      checked={isAssigned}
-                      onCheckedChange={(checked) => {
-                        if (checked && selectedTeacher) {
-                          assignGrade.mutate({ teacherId: selectedTeacher.id, gradeId: grade.id });
-                        }
-                      }}
-                    />
-                    <Label htmlFor={`grade-${grade.id}`}>{grade.name}</Label>
+                  <div key={grade.id} className="flex items-center justify-between space-x-2 p-2 rounded-md border border-muted hover:bg-muted/30">
+                    <div className="flex items-center space-x-2">
+                      <Checkbox 
+                        id={`grade-${grade.id}`} 
+                        checked={isAssigned}
+                        onCheckedChange={(checked) => {
+                          if (selectedTeacher) {
+                            if (checked) {
+                              assignGrade.mutate({ 
+                                teacherId: selectedTeacher.id, 
+                                gradeId: grade.id 
+                              });
+                            } else {
+                              // Unassign grade
+                              const res = fetch(
+                                `/api/teacher-grades/${selectedTeacher.id}/${grade.id}`, 
+                                { method: 'DELETE' }
+                              ).then(() => {
+                                toast({
+                                  title: "Success",
+                                  description: `Removed ${grade.name} assignment`,
+                                });
+                                queryClient.invalidateQueries({ 
+                                  queryKey: ["/api/teacher-grades", selectedTeacher.id] 
+                                });
+                              }).catch(error => {
+                                toast({
+                                  title: "Error",
+                                  description: "Failed to remove grade assignment",
+                                  variant: "destructive",
+                                });
+                              });
+                            }
+                          }
+                        }}
+                      />
+                      <Label 
+                        htmlFor={`grade-${grade.id}`}
+                        className="font-medium cursor-pointer"
+                      >
+                        {grade.name}
+                      </Label>
+                    </div>
+                    
+                    {isAssigned && (
+                      <Button 
+                        variant="ghost" 
+                        size="sm"
+                        className="h-7 px-2 text-destructive hover:text-destructive hover:bg-destructive/10"
+                        onClick={() => {
+                          if (selectedTeacher) {
+                            fetch(
+                              `/api/teacher-grades/${selectedTeacher.id}/${grade.id}`, 
+                              { method: 'DELETE' }
+                            ).then(() => {
+                              toast({
+                                title: "Success",
+                                description: `Removed ${grade.name} assignment`,
+                              });
+                              queryClient.invalidateQueries({ 
+                                queryKey: ["/api/teacher-grades", selectedTeacher.id] 
+                              });
+                            }).catch(error => {
+                              toast({
+                                title: "Error",
+                                description: "Failed to remove grade assignment",
+                                variant: "destructive",
+                              });
+                            });
+                          }
+                        }}
+                      >
+                        <X className="h-4 w-4" />
+                      </Button>
+                    )}
                   </div>
                 );
               })}
@@ -462,7 +642,17 @@ export default function AdminTeachers() {
       </Dialog>
       
       {/* Assign Subject Dialog */}
-      <Dialog open={isAssignSubjectOpen} onOpenChange={setIsAssignSubjectOpen}>
+      <Dialog 
+        open={isAssignSubjectOpen} 
+        onOpenChange={(open) => {
+          setIsAssignSubjectOpen(open);
+          if (!open) {
+            // Reset form state when dialog closes
+            setSelectedGradeId("");
+            setSelectedSubjectId("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
             <DialogTitle>Assign Subject to Teacher</DialogTitle>
@@ -473,50 +663,78 @@ export default function AdminTeachers() {
           <div className="space-y-4 py-4">
             <div className="space-y-2">
               <Label htmlFor="grade-select">Grade</Label>
-              <select
-                id="grade-select"
-                className="w-full p-2 border rounded"
+              <Select 
+                value={selectedGradeId} 
+                onValueChange={setSelectedGradeId}
               >
-                <option value="">Select a grade</option>
-                {teacherGrades.map(grade => (
-                  <option key={grade.id} value={grade.id}>{grade.name}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a grade" />
+                </SelectTrigger>
+                <SelectContent>
+                  {teacherGrades.length === 0 ? (
+                    <div className="p-2 text-sm text-muted-foreground">
+                      No grades assigned yet. Please assign a grade first.
+                    </div>
+                  ) : (
+                    teacherGrades.map(grade => (
+                      <SelectItem key={grade.id} value={grade.id.toString()}>
+                        {grade.name}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
+              {teacherGrades.length === 0 && (
+                <p className="text-xs text-orange-500 mt-1">
+                  You need to assign grades to this teacher first
+                </p>
+              )}
             </div>
             
             <div className="space-y-2">
               <Label htmlFor="subject-select">Subject</Label>
-              <select
-                id="subject-select"
-                className="w-full p-2 border rounded"
+              <Select 
+                value={selectedSubjectId} 
+                onValueChange={setSelectedSubjectId}
+                disabled={!selectedGradeId}
               >
-                <option value="">Select a subject</option>
-                {subjects.map(subject => (
-                  <option key={subject.id} value={subject.id}>{subject.name}</option>
-                ))}
-              </select>
+                <SelectTrigger className="w-full">
+                  <SelectValue placeholder="Select a subject" />
+                </SelectTrigger>
+                <SelectContent>
+                  {subjects.map(subject => (
+                    <SelectItem key={subject.id} value={subject.id.toString()}>
+                      {subject.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             </div>
           </div>
           <DialogFooter>
-            <Button variant="outline" onClick={() => setIsAssignSubjectOpen(false)}>Cancel</Button>
-            <Button onClick={() => {
-              const gradeId = parseInt((document.getElementById('grade-select') as HTMLSelectElement).value);
-              const subjectId = parseInt((document.getElementById('subject-select') as HTMLSelectElement).value);
-              
-              if (selectedTeacher && gradeId && subjectId) {
-                assignSubject.mutate({
-                  teacherId: selectedTeacher.id,
-                  gradeId,
-                  subjectId
-                });
-              } else {
-                toast({
-                  title: "Error",
-                  description: "Please select both a grade and a subject",
-                  variant: "destructive",
-                });
-              }
-            }}>Assign Subject</Button>
+            <Button variant="outline" onClick={() => setIsAssignSubjectOpen(false)}>
+              Cancel
+            </Button>
+            <Button 
+              onClick={() => {
+                if (selectedTeacher && selectedGradeId && selectedSubjectId) {
+                  assignSubject.mutate({
+                    teacherId: selectedTeacher.id,
+                    gradeId: parseInt(selectedGradeId),
+                    subjectId: parseInt(selectedSubjectId)
+                  });
+                } else {
+                  toast({
+                    title: "Error",
+                    description: "Please select both a grade and a subject",
+                    variant: "destructive",
+                  });
+                }
+              }}
+              disabled={!selectedGradeId || !selectedSubjectId || assignSubject.isPending}
+            >
+              {assignSubject.isPending ? "Assigning..." : "Assign Subject"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
