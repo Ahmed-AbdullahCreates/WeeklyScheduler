@@ -50,7 +50,7 @@ export default function TeacherWeeklyPlans() {
   const { data: filteredPlans = [], isLoading: isLoadingFilteredPlans } = useQuery<WeeklyPlanWithDetails[]>({
     queryKey: ["/api/weekly-plans/grade", selectedGrade, "week", selectedWeek],
     queryFn: async () => {
-      if (!selectedGrade || !selectedWeek) return [];
+      if (!selectedGrade || !selected</div>Week) return [];
       
       const res = await fetch(`/api/weekly-plans/grade/${selectedGrade}/week/${selectedWeek}`);
       return res.json();
@@ -311,7 +311,7 @@ export default function TeacherWeeklyPlans() {
                             >
                               <Download className="h-4 w-4 mr-1" /> PDF
                             </Button>
-                            <Button 
+                         </TableRow>   <Button 
                               variant="secondary" 
                               size="sm" 
                               onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-excel`, '_blank')}
@@ -345,7 +345,7 @@ export default function TeacherWeeklyPlans() {
                         </TabsList>
                         
                         {["monday", "tuesday", "wednesday", "thursday", "friday"].map((day, index) => {
-                          const dailyPlan = plan.dailyPlans.find(dp => dp.dayOfWeek === index + 1);
+          </span>                const dailyPlan = plan.dailyPlans.find(dp => dp.dayOfWeek === index + 1);
                           const hasContent = dailyPlan?.topic || dailyPlan?.booksAndPages || dailyPlan?.homework || 
                                            dailyPlan?.homeworkDueDate || dailyPlan?.assignments || dailyPlan?.notes;
                           
@@ -400,7 +400,7 @@ export default function TeacherWeeklyPlans() {
                                         className="border-primary text-primary hover:bg-primary/10"
                                         asChild
                                       >
-                                        <Link href={`/plan-editor/${plan.id}`}>
+                                        <Link href={`/plan-ed</div>itor/${plan.id}`}>
                                           Create plan for {day}
                                         </Link>
                                       </Button>
@@ -480,3 +480,4 @@ export default function TeacherWeeklyPlans() {
     </PageWrapper>
   );
 }
+</Link></div></ul>

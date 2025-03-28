@@ -85,20 +85,39 @@ export function generateSimplePDF(
         darkGray: '#1f2937',
         white: '#ffffff',
         borderColor: '#d1d5db',
-        headerBg: '#e0f2fe'    // Light blue background
+        headerBg: '#e0f2fe',   // Light blue background
+        borderDark: '#9ca3af'  // Darker border for emphasis
       };
 
       // Constants for layout
       const pageWidth = doc.page.width - 120; // Full content width
-      const leftMargin = 60;                 // Left margin
+      const leftMargin = 60;                  // Left margin
       const rightMargin = doc.page.width - 60; // Right margin
+      const topMargin = 60;                   // Top margin
+      const bottomMargin = 60;                // Bottom margin
+
+      // Draw page border function for consistency
+      const drawPageBorder = () => {
+        doc.lineWidth(1)
+           .strokeColor(colors.borderDark)
+           .roundedRect(
+             leftMargin - 5,
+             topMargin - 5,
+             doc.page.width - (leftMargin * 2) + 10,
+             doc.page.height - (topMargin + bottomMargin) + 10,
+             5 // rounded corner radius
+           )
+           .stroke();
+      };
       
       // Helper for drawing section headers
       const drawSectionHeader = (title: string, color: string, y: number) => {
-        // Background
-        doc.rect(leftMargin, y, pageWidth, 30)
-          .fillColor(color)
-          .fill();
+        // Background with border
+        doc.lineWidth(1)
+           .strokeColor(colors.borderDark)
+           .rect(leftMargin, y, pageWidth, 30)
+           .fillColor(color)
+           .fillAndStroke();
           
         // Title text
         doc.fillColor(colors.white)
@@ -122,10 +141,15 @@ export function generateSimplePDF(
         return doc.y;
       };
 
+      // Draw border for the first page
+      drawPageBorder();
+
       // ===== DOCUMENT HEADER =====
-      doc.rect(leftMargin, 60, pageWidth, 50)
-        .fillColor(colors.headerBg)
-        .fill();
+      doc.lineWidth(1)
+         .strokeColor(colors.primary)
+         .rect(leftMargin, 60, pageWidth, 50)
+         .fillColor(colors.headerBg)
+         .fillAndStroke();
         
       doc.fontSize(22)
         .font('Helvetica-Bold')
@@ -144,18 +168,17 @@ export function generateSimplePDF(
         });
       
       // ===== INFO SECTION =====
-      // Info box background
+      // Info box with enhanced border
       const infoBoxY = 130;
       const infoBoxHeight = 100;
       
-      doc.rect(leftMargin, infoBoxY, pageWidth, infoBoxHeight)
-        .fillColor(colors.lightGray)
-        .fillOpacity(0.5)
-        .fill()
-        .fillOpacity(1) // Reset opacity
-        .lineWidth(1)
-        .strokeColor(colors.borderColor)
-        .stroke();
+      doc.lineWidth(1.5)
+         .strokeColor(colors.borderDark)
+         .rect(leftMargin, infoBoxY, pageWidth, infoBoxHeight)
+         .fillColor(colors.lightGray)
+         .fillOpacity(0.5)
+         .fillAndStroke()
+         .fillOpacity(1); // Reset opacity
 
       // Left column
       const colWidth = pageWidth / 2 - 10;
@@ -167,6 +190,13 @@ export function generateSimplePDF(
       drawField('Week Number:', `Week ${weekNumber} (${weekYear})`, leftMargin + colWidth + 25, infoBoxY + 15, colWidth - 25);
       drawField('Date Range:', formatDateRange(startDate), leftMargin + colWidth + 25, infoBoxY + 40, colWidth - 25);
       drawField('Generated:', formatDate(new Date().toString()), leftMargin + colWidth + 25, infoBoxY + 65, colWidth - 25);
+      
+      // Division line between columns (vertical)
+      doc.lineWidth(0.75)
+         .strokeColor(colors.borderColor)
+         .moveTo(leftMargin + colWidth + 15, infoBoxY + 10)
+         .lineTo(leftMargin + colWidth + 15, infoBoxY + infoBoxHeight - 10)
+         .stroke();
       
       // Starting Y position for daily plans
       let currentY = infoBoxY + infoBoxHeight + 20;
@@ -181,6 +211,7 @@ export function generateSimplePDF(
         // Check if we need to add a page break
         if (currentY > doc.page.height - 250) {
           doc.addPage();
+          drawPageBorder(); // Add border to new page
           currentY = 60; // Reset Y position on new page
         }
         
@@ -191,13 +222,12 @@ export function generateSimplePDF(
           // Content box height depends on content
           const contentBoxHeight = dailyPlan.notes ? 200 : 160;
           
-          // Content background with border
-          doc.rect(leftMargin, currentY, pageWidth, contentBoxHeight)
-            .fillColor(colors.white)
-            .fill()
-            .lineWidth(1)
-            .strokeColor(colors.borderColor)
-            .stroke();
+          // Content background with enhanced border
+          doc.lineWidth(1.5)
+             .strokeColor(colors.borderDark)
+             .rect(leftMargin, currentY, pageWidth, contentBoxHeight)
+             .fillColor(colors.white)
+             .fillAndStroke();
           
           // Topic (full width)
           const topicY = currentY + 10;
@@ -214,10 +244,11 @@ export function generateSimplePDF(
           
           // Divider line after topic
           const dividerY = topicY + 25;
-          doc.moveTo(leftMargin + 15, dividerY)
-            .lineTo(rightMargin - 15, dividerY)
-            .strokeColor(colors.lightGray)
-            .stroke();
+          doc.lineWidth(1)
+             .moveTo(leftMargin + 15, dividerY)
+             .lineTo(rightMargin - 15, dividerY)
+             .strokeColor(colors.borderColor)
+             .stroke();
             
           // Starting position for the details grid
           const gridY = dividerY + 15;
@@ -228,11 +259,13 @@ export function generateSimplePDF(
           const rightColX = leftMargin + colWidth + 25;
           
           // Books and Pages (left column)
-          doc.rect(leftColX, gridY, colWidth, 45)
-            .fillColor(colors.white)
-            .fillOpacity(0.5)
-            .fill()
-            .fillOpacity(1);
+          doc.lineWidth(1)
+             .strokeColor(colors.borderColor)
+             .rect(leftColX, gridY, colWidth, 45)
+             .fillColor(colors.white)
+             .fillOpacity(0.5)
+             .fillAndStroke()
+             .fillOpacity(1);
             
           doc.fontSize(11)
             .font('Helvetica-Bold')
@@ -249,11 +282,13 @@ export function generateSimplePDF(
             });
           
           // Homework (right column)
-          doc.rect(rightColX, gridY, colWidth, 45)
-            .fillColor(colors.white)
-            .fillOpacity(0.5)
-            .fill()
-            .fillOpacity(1);
+          doc.lineWidth(1)
+             .strokeColor(colors.borderColor)
+             .rect(rightColX, gridY, colWidth, 45)
+             .fillColor(colors.white)
+             .fillOpacity(0.5)
+             .fillAndStroke()
+             .fillOpacity(1);
             
           doc.fontSize(11)
             .font('Helvetica-Bold')
@@ -273,11 +308,13 @@ export function generateSimplePDF(
           const row2Y = gridY + 55;
           
           // Assignments (left column)
-          doc.rect(leftColX, row2Y, colWidth, 45)
-            .fillColor(colors.white)
-            .fillOpacity(0.5)
-            .fill()
-            .fillOpacity(1);
+          doc.lineWidth(1)
+             .strokeColor(colors.borderColor)
+             .rect(leftColX, row2Y, colWidth, 45)
+             .fillColor(colors.white)
+             .fillOpacity(0.5)
+             .fillAndStroke()
+             .fillOpacity(1);
             
           doc.fontSize(11)
             .font('Helvetica-Bold')
@@ -294,11 +331,13 @@ export function generateSimplePDF(
             });
           
           // Due Date (right column)
-          doc.rect(rightColX, row2Y, colWidth, 45)
-            .fillColor(colors.white)
-            .fillOpacity(0.5)
-            .fill()
-            .fillOpacity(1);
+          doc.lineWidth(1)
+             .strokeColor(colors.borderColor)
+             .rect(rightColX, row2Y, colWidth, 45)
+             .fillColor(colors.white)
+             .fillOpacity(0.5)
+             .fillAndStroke()
+             .fillOpacity(1);
             
           doc.fontSize(11)
             .font('Helvetica-Bold')
@@ -321,11 +360,13 @@ export function generateSimplePDF(
           if (dailyPlan.notes) {
             const notesY = row2Y + 55;
             
-            doc.rect(leftColX, notesY, pageWidth - 30, 45)
-              .fillColor(colors.white)
-              .fillOpacity(0.5)
-              .fill()
-              .fillOpacity(1);
+            doc.lineWidth(1)
+               .strokeColor(colors.borderColor)
+               .rect(leftColX, notesY, pageWidth - 30, 45)
+               .fillColor(colors.white)
+               .fillOpacity(0.5)
+               .fillAndStroke()
+               .fillOpacity(1);
               
             doc.fontSize(11)
               .font('Helvetica-Bold')
@@ -346,12 +387,11 @@ export function generateSimplePDF(
           currentY += contentBoxHeight + 20;
         } else {
           // Simple box for days without plans
-          doc.rect(leftMargin, currentY, pageWidth, 50)
-            .fillColor(colors.white)
-            .fill()
-            .lineWidth(1)
-            .strokeColor(colors.borderColor)
-            .stroke();
+          doc.lineWidth(1)
+             .strokeColor(colors.borderDark)
+             .rect(leftMargin, currentY, pageWidth, 50)
+             .fillColor(colors.white)
+             .fillAndStroke();
             
           doc.fontSize(12)
             .font('Helvetica')
@@ -373,24 +413,24 @@ export function generateSimplePDF(
         // Check if we need a new page
         if (currentY > doc.page.height - 200) {
           doc.addPage();
+          drawPageBorder(); // Add border to new page
           currentY = 60;
         }
         
         // Notes header
         currentY = drawSectionHeader('Weekly Notes', colors.accent, currentY);
         
-        // Notes background
+        // Notes background with enhanced border
         const notesHeight = Math.min(
           150, // Default height
           20 + doc.heightOfString(weeklyPlanData.weeklyPlan.notes, { width: pageWidth - 40 })
         );
         
-        doc.rect(leftMargin, currentY, pageWidth, notesHeight)
-          .fillColor(colors.white)
-          .fill()
-          .lineWidth(1)
-          .strokeColor(colors.borderColor)
-          .stroke();
+        doc.lineWidth(1.5)
+           .strokeColor(colors.borderDark)
+           .rect(leftMargin, currentY, pageWidth, notesHeight)
+           .fillColor(colors.white)
+           .fillAndStroke();
         
         doc.fontSize(11)
           .font('Helvetica')
@@ -413,22 +453,31 @@ export function generateSimplePDF(
           .lineTo(rightMargin, doc.page.height - 50)
           .stroke(colors.borderColor);
         
+        // Footer box with border
+        doc.lineWidth(0.75)
+           .strokeColor(colors.borderColor)
+           .rect(leftMargin, doc.page.height - 45, pageWidth, 30)
+           .fillColor(colors.lightGray)
+           .fillOpacity(0.3)
+           .fillAndStroke()
+           .fillOpacity(1);
+        
         // Footer text
         doc.fontSize(9)
           .font('Helvetica')
           .fillColor(colors.gray)
           .text(
             `Generated on ${formatDate(new Date())} | Weekly Planner System`,
-            leftMargin, 
+            leftMargin + 10, 
             doc.page.height - 35, 
-            { align: 'left', width: pageWidth - 100 }
+            { align: 'left', width: pageWidth - 110 }
           );
           
         doc.text(
           `Page ${i + 1} of ${totalPages}`, 
           rightMargin - 100, 
           doc.page.height - 35, 
-          { align: 'right', width: 100 }
+          { align: 'right', width: 90 }
         );
       }
 

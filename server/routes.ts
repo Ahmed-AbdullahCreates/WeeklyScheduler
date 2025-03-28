@@ -19,6 +19,11 @@ import {
   User
 } from "@shared/schema";
 
+// Import your preferred generator
+import { generateWeeklyPlanPDF } from './utils/enhanced-pdf-generator';
+// For a new generator, add:
+// import { generateModernPDF } from './utils/modern-pdf-generator';
+
 const isAdmin = (req: Request, res: Response, next: Function) => {
   if (!req.isAuthenticated()) {
     return res.status(401).json({ message: "Not authenticated" });
@@ -680,55 +685,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(404).json({ message: "Weekly plan not found" });
       }
       
-      // Check permission
-      const user = req.user as User;
-      if (!user.isAdmin && planComplete.weeklyPlan.teacherId !== user.id) {
-        return res.status(403).json({ message: "You don't have access to this plan" });
-      }
+      // Get additional information needed for PDF
+      const teacher = await storage.getTeacherById(planComplete.weeklyPlan.teacherId);
+      const defaultWeek = await storage.getWeekById(planComplete.weeklyPlan.weekId);
+      const defaultGrade = await storage.getGradeById(planComplete.weeklyPlan.gradeId);
+      const defaultSubject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
       
-      // Get additional data for the PDF
-      const weekDetails = await storage.getPlanningWeekById(planComplete.weeklyPlan.weekId);
-      const grade = await storage.getGradeById(planComplete.weeklyPlan.gradeId);
-      const subject = await storage.getSubjectById(planComplete.weeklyPlan.subjectId);
-      const teacher = await storage.getUser(planComplete.weeklyPlan.teacherId);
-      
-      // Use fallback values for any missing data instead of returning an error
-      const defaultTeacher = teacher || { 
-        id: planComplete.weeklyPlan.teacherId, 
-        username: 'Unknown', 
-        fullName: 'Unknown Teacher', 
-        isAdmin: false, 
-        password: '' 
-      };
-      
-      const defaultGrade = grade || { 
-        id: planComplete.weeklyPlan.gradeId, 
-        name: `Grade ID ${planComplete.weeklyPlan.gradeId}` 
-      };
-      
-      const defaultSubject = subject || { 
-        id: planComplete.weeklyPlan.subjectId, 
-        name: `Subject ID ${planComplete.weeklyPlan.subjectId}` 
-      };
-      
-      const defaultWeek = weekDetails || { 
-        id: planComplete.weeklyPlan.weekId, 
-        weekNumber: 0, 
-        year: new Date().getFullYear(),
-        startDate: new Date().toISOString(),
-        endDate: new Date().toISOString(),
-        isActive: false
-      };
-      
-      // Log a warning about missing data
-      if (!weekDetails || !grade || !subject || !teacher) {
-        console.warn(`Warning: Some related data missing for PDF export of weekly plan ID ${planComplete.weeklyPlan.id}`);
-      }
-      
-      // Generate the PDF using the simplified generator with default values if needed
-      const pdfBuffer = await generateSimplePDF(
+      // Generate the PDF using your chosen generator
+      const pdfBuffer = await generateWeeklyPlanPDF(
         planComplete,
-        defaultTeacher.fullName,
+        teacher?.name || "Unknown Teacher",
         defaultGrade.name,
         defaultSubject.name,
         defaultWeek.weekNumber,
@@ -736,7 +702,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         defaultWeek.startDate
       );
       
-      // Set response headers
+      // Send the PDF response
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename=weekly-plan-${defaultGrade.name}-${defaultSubject.name}-week-${defaultWeek.weekNumber}.pdf`);
       res.setHeader('Content-Length', pdfBuffer.length);
