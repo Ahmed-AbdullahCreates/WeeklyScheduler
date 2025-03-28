@@ -20,6 +20,7 @@ import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
 import { Tabs, TabsList, TabsTrigger, TabsContent } from "@/components/ui/tabs";
 import { CalendarIcon, Download, FileText, Search } from "lucide-react";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { ConsolidatedWeeklyPlanView } from "@/components/admin/consolidated-weekly-plan-view";
 
 export default function AdminWeeklyPlans() {
   const { toast } = useToast();
@@ -227,115 +228,130 @@ export default function AdminWeeklyPlans() {
                 </div>
               </div>
             ) : (
-              <div className="space-y-8">
-                {weeklyPlans.map(plan => (
-                  <Card key={plan.id} className="border-t-4 border-t-primary shadow-md hover:shadow-lg transition-shadow">
-                    <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
-                      <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
-                        <div>
-                          <CardTitle className="text-lg flex items-center">
-                            <FileText className="h-5 w-5 mr-2 text-primary" />
-                            <span className="bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text font-semibold">
-                              {plan.subject.name}
-                            </span>
-                          </CardTitle>
-                          <div className="flex items-center mt-2 space-x-2">
-                            <Badge variant="outline" className="bg-blue-50">
-                              <span className="font-medium text-blue-700">Teacher:</span> {plan.teacher.fullName}
-                            </Badge>
-                            <Badge variant="outline">
-                              Created: {formatDate(new Date(plan.createdAt))}
-                            </Badge>
+              <Tabs defaultValue="individual" className="w-full">
+                <TabsList className="w-full mb-6 grid grid-cols-2">
+                  <TabsTrigger value="individual" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Individual Plans</TabsTrigger>
+                  <TabsTrigger value="consolidated" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Consolidated View</TabsTrigger>
+                </TabsList>
+                
+                <TabsContent value="individual" className="space-y-8">
+                  {weeklyPlans.map(plan => (
+                    <Card key={plan.id} className="border-t-4 border-t-primary shadow-md hover:shadow-lg transition-shadow">
+                      <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent">
+                        <div className="flex flex-col md:flex-row justify-between md:items-center gap-2">
+                          <div>
+                            <CardTitle className="text-lg flex items-center">
+                              <FileText className="h-5 w-5 mr-2 text-primary" />
+                              <span className="bg-gradient-to-r from-primary to-primary/80 text-transparent bg-clip-text font-semibold">
+                                {plan.subject.name}
+                              </span>
+                            </CardTitle>
+                            <div className="flex items-center mt-2 space-x-2">
+                              <Badge variant="outline" className="bg-blue-50">
+                                <span className="font-medium text-blue-700">Teacher:</span> {plan.teacher.fullName}
+                              </Badge>
+                              <Badge variant="outline">
+                                Created: {formatDate(new Date(plan.createdAt))}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="flex items-center gap-3">
+                            <div className="flex flex-col sm:flex-row gap-2">
+                              <Button 
+                                variant="secondary" 
+                                size="sm"
+                                onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
+                                className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-white"
+                              >
+                                <Download className="h-4 w-4 mr-1" /> PDF
+                              </Button>
+                              <Button 
+                                variant="secondary" 
+                                size="sm" 
+                                onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-excel`, '_blank')}
+                                className="bg-gradient-to-r from-blue-500/90 to-blue-600 hover:from-blue-600 hover:to-blue-500/90 text-white"
+                              >
+                                <Download className="h-4 w-4 mr-1" /> Excel
+                              </Button>
+                            </div>
                           </div>
                         </div>
-                        <div className="flex items-center gap-3">
-                          <div className="flex flex-col sm:flex-row gap-2">
-                            <Button 
-                              variant="secondary" 
-                              size="sm"
-                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-pdf`, '_blank')}
-                              className="bg-gradient-to-r from-primary/90 to-primary hover:from-primary hover:to-primary/90 text-white"
-                            >
-                              <Download className="h-4 w-4 mr-1" /> PDF
-                            </Button>
-                            <Button 
-                              variant="secondary" 
-                              size="sm" 
-                              onClick={() => window.open(`/api/weekly-plans/${plan.id}/export-excel`, '_blank')}
-                              className="bg-gradient-to-r from-blue-500/90 to-blue-600 hover:from-blue-600 hover:to-blue-500/90 text-white"
-                            >
-                              <Download className="h-4 w-4 mr-1" /> Excel
-                            </Button>
-                          </div>
-                        </div>
-                      </div>
-                    </CardHeader>
-                    <CardContent className="pt-6">
-                      <Tabs defaultValue="monday" className="w-full">
-                        <TabsList className="w-full grid grid-cols-5 mb-4 bg-muted/30">
-                          <TabsTrigger value="monday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Monday</TabsTrigger>
-                          <TabsTrigger value="tuesday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Tuesday</TabsTrigger>
-                          <TabsTrigger value="wednesday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Wednesday</TabsTrigger>
-                          <TabsTrigger value="thursday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Thursday</TabsTrigger>
-                          <TabsTrigger value="friday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Friday</TabsTrigger>
-                        </TabsList>
-                        
-                        {["monday", "tuesday", "wednesday", "thursday", "friday"].map((day, index) => {
-                          const dailyPlan = plan.dailyPlans.find(dp => dp.dayOfWeek === index + 1);
-                          return (
-                            <TabsContent key={day} value={day} className="bg-white rounded-md p-4 border border-muted">
-                              {dailyPlan ? (
-                                <div className="space-y-6">
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-primary hover:shadow-md transition-shadow">
-                                      <h4 className="text-sm font-medium mb-1 text-primary">Topic</h4>
-                                      <p className="text-neutral-800">{dailyPlan.topic}</p>
+                      </CardHeader>
+                      <CardContent className="pt-6">
+                        <Tabs defaultValue="monday" className="w-full">
+                          <TabsList className="w-full grid grid-cols-5 mb-4 bg-muted/30">
+                            <TabsTrigger value="monday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Monday</TabsTrigger>
+                            <TabsTrigger value="tuesday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Tuesday</TabsTrigger>
+                            <TabsTrigger value="wednesday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Wednesday</TabsTrigger>
+                            <TabsTrigger value="thursday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Thursday</TabsTrigger>
+                            <TabsTrigger value="friday" className="data-[state=active]:bg-primary data-[state=active]:text-primary-foreground">Friday</TabsTrigger>
+                          </TabsList>
+                          
+                          {["monday", "tuesday", "wednesday", "thursday", "friday"].map((day, index) => {
+                            const dailyPlan = plan.dailyPlans.find(dp => dp.dayOfWeek === index + 1);
+                            return (
+                              <TabsContent key={day} value={day} className="bg-white rounded-md p-4 border border-muted">
+                                {dailyPlan ? (
+                                  <div className="space-y-6">
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                      <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-primary hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-medium mb-1 text-primary">Topic</h4>
+                                        <p className="text-neutral-800">{dailyPlan.topic}</p>
+                                      </div>
+                                      <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-secondary hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-medium mb-1 text-secondary">Books & Pages</h4>
+                                        <p className="text-neutral-800">{dailyPlan.booksAndPages || "N/A"}</p>
+                                      </div>
                                     </div>
-                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-secondary hover:shadow-md transition-shadow">
-                                      <h4 className="text-sm font-medium mb-1 text-secondary">Books & Pages</h4>
-                                      <p className="text-neutral-800">{dailyPlan.booksAndPages || "N/A"}</p>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                                      <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-medium mb-1 text-orange-600">Homework</h4>
+                                        <p className="text-neutral-800">{dailyPlan.homework || "N/A"}</p>
+                                      </div>
+                                      <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-medium mb-1 text-emerald-600">Homework Due Date</h4>
+                                        <p className="text-neutral-800">
+                                          {dailyPlan.homeworkDueDate ? formatDate(new Date(dailyPlan.homeworkDueDate)) : "N/A"}
+                                        </p>
+                                      </div>
                                     </div>
-                                  </div>
-                                  <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-orange-500 hover:shadow-md transition-shadow">
-                                      <h4 className="text-sm font-medium mb-1 text-orange-600">Homework</h4>
-                                      <p className="text-neutral-800">{dailyPlan.homework || "N/A"}</p>
-                                    </div>
-                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-emerald-500 hover:shadow-md transition-shadow">
-                                      <h4 className="text-sm font-medium mb-1 text-emerald-600">Homework Due Date</h4>
-                                      <p className="text-neutral-800">
-                                        {dailyPlan.homeworkDueDate ? formatDate(new Date(dailyPlan.homeworkDueDate)) : "N/A"}
-                                      </p>
+                                    <div className="grid grid-cols-1 gap-6">
+                                      <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-medium mb-1 text-blue-600">Assignments</h4>
+                                        <p className="text-neutral-800">{dailyPlan.assignments || "N/A"}</p>
+                                      </div>
+                                      <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
+                                        <h4 className="text-sm font-medium mb-1 text-purple-600">Notes</h4>
+                                        <p className="text-neutral-800">{dailyPlan.notes || "N/A"}</p>
+                                      </div>
                                     </div>
                                   </div>
-                                  <div className="grid grid-cols-1 gap-6">
-                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-blue-500 hover:shadow-md transition-shadow">
-                                      <h4 className="text-sm font-medium mb-1 text-blue-600">Assignments</h4>
-                                      <p className="text-neutral-800">{dailyPlan.assignments || "N/A"}</p>
+                                ) : (
+                                  <div className="flex flex-col justify-center items-center p-8 bg-neutral-50 rounded-md">
+                                    <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
+                                      <FileText className="h-8 w-8 text-muted-foreground" />
                                     </div>
-                                    <div className="bg-white rounded-md shadow-sm p-4 border-l-4 border-l-purple-500 hover:shadow-md transition-shadow">
-                                      <h4 className="text-sm font-medium mb-1 text-purple-600">Notes</h4>
-                                      <p className="text-neutral-800">{dailyPlan.notes || "N/A"}</p>
-                                    </div>
+                                    <p className="text-neutral-500 font-medium">No plan created for this day.</p>
+                                    <p className="text-sm text-neutral-400">The teacher hasn't created a plan for {day}.</p>
                                   </div>
-                                </div>
-                              ) : (
-                                <div className="flex flex-col justify-center items-center p-8 bg-neutral-50 rounded-md">
-                                  <div className="h-16 w-16 rounded-full bg-muted flex items-center justify-center mb-4">
-                                    <FileText className="h-8 w-8 text-muted-foreground" />
-                                  </div>
-                                  <p className="text-neutral-500 font-medium">No plan created for this day.</p>
-                                  <p className="text-sm text-neutral-400">The teacher hasn't created a plan for {day}.</p>
-                                </div>
-                              )}
-                            </TabsContent>
-                          );
-                        })}
-                      </Tabs>
-                    </CardContent>
-                  </Card>
-                ))}
-              </div>
+                                )}
+                              </TabsContent>
+                            );
+                          })}
+                        </Tabs>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </TabsContent>
+                
+                <TabsContent value="consolidated">
+                  <ConsolidatedWeeklyPlanView 
+                    weeklyPlans={weeklyPlans} 
+                    grade={grades.find(g => g.id.toString() === selectedGrade)} 
+                    week={planningWeeks.find(w => w.id.toString() === selectedWeek)} 
+                  />
+                </TabsContent>
+              </Tabs>
             )}
           </CardContent>
         </Card>
