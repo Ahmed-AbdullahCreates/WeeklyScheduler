@@ -1,11 +1,11 @@
-username,password,fullName,email
-science_teacher,password123,John Smith,johnsmith@school.edu
-math_teacher,securepass456,Emily Johnson,emilyjohnson@school.edu
-english_teacher,teacherpass789,Michael Brown,michaelbrown@school.edu
-history_teacher,historypass101,Sarah Davis,sarahdavis@school.edu
-art_teacher,creative202,Robert Wilson,robertwilson@school.edu
-music_teacher,melody303,Jennifer Lee,jenniferlee@school.edu
-pe_teacher,fitness404,David Miller,davidmiller@school.edu
-tech_teacher,computer505,Lisa Garcia,lisagarcia@school.edu
-chemistry_teacher,formula606,James Taylor,jamestaylor@school.edu
-biology_teacher,biology707,Patricia Martinez,patriciamartinez@school.edu
+username,password
+science_teacher,password123
+math_teacher,securepass456
+english_teacher,teacherpass789
+history_teacher,historypass101
+art_teacher,creative202
+music_teacher,melody303
+pe_teacher,fitness404
+tech_teacher,computer505
+chemistry_teacher,formula606
+biology_teacher,biology707

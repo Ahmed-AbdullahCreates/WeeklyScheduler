@@ -9,8 +9,6 @@ const scryptAsync = promisify(scrypt);
 interface CSVUserData {
   username: string;
   password: string;
-  fullName: string;
-  email?: string;
 }
 
 // Type for validation results
@@ -29,48 +27,34 @@ async function hashPassword(password: string): Promise<string> {
 
 // Validate a single user from the CSV
 function validateUser(data: Record<string, string>, rowIndex: number): { user?: CSVUserData; error?: string; warning?: string } {
-  const requiredFields = ['username', 'password', 'fullName'];
+  const requiredFields = ['username', 'password'];
   const missingFields = requiredFields.filter(field => !data[field] || data[field].trim() === '');
-  
+
   if (missingFields.length > 0) {
     return {
       error: `Row ${rowIndex}: Missing required fields: ${missingFields.join(', ')}`
     };
   }
-  
+
   // Validate username format
   if (!/^[a-zA-Z0-9_]{3,20}$/.test(data.username)) {
     return {
       error: `Row ${rowIndex}: Username must be 3-20 characters and contain only letters, numbers, and underscores`
     };
   }
-  
+
   // Validate password length
   if (data.password.length < 6) {
     return {
       error: `Row ${rowIndex}: Password must be at least 6 characters`
     };
   }
-  
-  // Validate email if provided
-  if (data.email && !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    return {
-      warning: `Row ${rowIndex}: Invalid email format, will be imported without email`
-    };
-  }
-  
+
   // Create the user object
   const user: CSVUserData = {
     username: data.username.trim(),
-    password: data.password.trim(),
-    fullName: data.fullName.trim()
+    password: data.password.trim()
   };
-  
-  // Add email if valid
-  if (data.email && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(data.email)) {
-    user.email = data.email.trim();
-  }
-  
   return { user };
 }
 
@@ -80,7 +64,7 @@ export async function parseUsersCsv(buffer: Buffer): Promise<ValidationResult> {
     const users: CSVUserData[] = [];
     const errors: string[] = [];
     const warnings: string[] = [];
-    
+
     // Parse CSV
     parse(buffer, {
       columns: true,
@@ -91,28 +75,28 @@ export async function parseUsersCsv(buffer: Buffer): Promise<ValidationResult> {
       if (err) {
         return reject(new Error(`CSV parsing error: ${err.message}`));
       }
-      
+
       // CSV file is empty
       if (records.length === 0) {
         errors.push('CSV file is empty or does not contain valid data');
         return resolve({ users, errors, warnings });
       }
-      
+
       // Check if the CSV has the required columns
       const firstRecord = records[0];
-      const requiredColumns = ['username', 'password', 'fullName'];
+      const requiredColumns = ['username', 'password'];
       const missingColumns = requiredColumns.filter(col => !Object.keys(firstRecord).includes(col));
-      
+
       if (missingColumns.length > 0) {
         errors.push(`CSV is missing required columns: ${missingColumns.join(', ')}`);
         return resolve({ users, errors, warnings });
       }
-      
+
       // Process each record
       records.forEach((record, index) => {
         const rowNumber = index + 2; // +2 because index is 0-based and we have a header row
         const validation = validateUser(record, rowNumber);
-        
+
         if (validation.error) {
           errors.push(validation.error);
         } else if (validation.user) {
@@ -122,7 +106,7 @@ export async function parseUsersCsv(buffer: Buffer): Promise<ValidationResult> {
           }
         }
       });
-      
+
       resolve({ users, errors, warnings });
     });
   });
@@ -131,26 +115,20 @@ export async function parseUsersCsv(buffer: Buffer): Promise<ValidationResult> {
 // Process validated users (hash passwords, etc.)
 export async function processUserImport(users: CSVUserData[]): Promise<InsertUser[]> {
   const processedUsers: InsertUser[] = [];
-  
+
   for (const user of users) {
     const hashedPassword = await hashPassword(user.password);
-    
-    // Create the user object for database insertion
-    // Note: Removed isAdmin field as per requirements
+
+    // Create the user object for database insertion with default values for required fields
     const insertUser: InsertUser = {
       username: user.username,
       password: hashedPassword,
-      fullName: user.fullName,
-      isAdmin: false // Default to regular user
+      fullName: user.username, // Use username as fullName by default
+      isAdmin: false // Default to regular user (teacher)
     };
-    
-    // Add email if provided
-    if (user.email) {
-      insertUser.email = user.email;
-    }
-    
+
     processedUsers.push(insertUser);
   }
-  
+
   return processedUsers;
 }
