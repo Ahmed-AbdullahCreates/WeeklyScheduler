@@ -829,6 +829,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
   
+  // Update weekly plan notes
+  app.put("/api/weekly-plans/:id/notes", isAuthenticated, async (req, res) => {
+    try {
+      const id = parseInt(req.params.id);
+      const { notes } = req.body;
+      
+      // Get the weekly plan to check if it exists and if user is authorized
+      const weeklyPlan = await storage.getWeeklyPlanById(id);
+      
+      if (!weeklyPlan) {
+        return res.status(404).json({ message: "Weekly plan not found" });
+      }
+      
+      // Only allow the teacher who created the plan or an admin to update it
+      if (weeklyPlan.teacherId !== req.user?.id && !req.user?.isAdmin) {
+        return res.status(403).json({ message: "Not authorized to update this plan" });
+      }
+      
+      // Update just the notes field
+      const updatedPlan = await storage.updateWeeklyPlanNotes(id, notes);
+      
+      res.json(updatedPlan);
+    } catch (error) {
+      res.status(500).json({ message: "Error updating weekly plan notes", error: (error as Error).message });
+    }
+  });
+  
   const httpServer = createServer(app);
   return httpServer;
 }

@@ -82,6 +82,7 @@ export interface IStorage {
   getWeeklyPlansByGradeAndWeek(gradeId: number, weekId: number): Promise<WeeklyPlanWithDetails[]>;
   getWeeklyPlanComplete(planId: number): Promise<WeeklyPlanComplete | undefined>;
   getTeacherFullData(teacherId: number): Promise<TeacherWithAssignments | undefined>;
+  updateWeeklyPlanNotes(id: number, notes: string): Promise<WeeklyPlan | undefined>;
   
   // Daily plans
   createDailyPlan(plan: InsertDailyPlan): Promise<DailyPlan>;
@@ -500,6 +501,7 @@ export class MemStorage implements IStorage {
     const weeklyPlan: WeeklyPlan = { 
       ...plan, 
       id, 
+      notes: plan.notes ?? null, // Make sure notes is never undefined
       createdAt: now,
       updatedAt: now
     };
@@ -609,6 +611,20 @@ export class MemStorage implements IStorage {
   
   async getDailyPlanById(id: number): Promise<DailyPlan | undefined> {
     return this.dailyPlans.get(id);
+  }
+  
+  async updateWeeklyPlanNotes(id: number, notes: string): Promise<WeeklyPlan | undefined> {
+    const weeklyPlan = this.weeklyPlans.get(id);
+    if (!weeklyPlan) return undefined;
+    
+    const updatedPlan = {
+      ...weeklyPlan,
+      notes,
+      updatedAt: new Date()
+    };
+    
+    this.weeklyPlans.set(id, updatedPlan);
+    return updatedPlan;
   }
   
   async getDailyPlansByWeeklyPlan(weeklyPlanId: number): Promise<DailyPlan[]> {
@@ -996,6 +1012,7 @@ export class DatabaseStorage implements IStorage {
     const inserted = await this.db.insert(weeklyPlans)
       .values({
         ...plan,
+        notes: plan.notes ?? null, // Ensure notes is never undefined
         createdAt: now,
         updatedAt: now
       })
@@ -1181,6 +1198,18 @@ export class DatabaseStorage implements IStorage {
       .from(dailyPlans)
       .where(eq(dailyPlans.id, id));
     return result.length ? result[0] : undefined;
+  }
+  
+  async updateWeeklyPlanNotes(id: number, notes: string): Promise<WeeklyPlan | undefined> {
+    const updated = await this.db.update(weeklyPlans)
+      .set({ 
+        notes, 
+        updatedAt: new Date() 
+      })
+      .where(eq(weeklyPlans.id, id))
+      .returning();
+    
+    return updated.length ? updated[0] : undefined;
   }
 
   async getDailyPlansByWeeklyPlan(weeklyPlanId: number): Promise<DailyPlan[]> {
