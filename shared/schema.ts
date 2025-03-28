@@ -117,16 +117,28 @@ export const dailyPlans = pgTable("daily_plans", {
   notes: text("notes"),
 });
 
-export const insertDailyPlanSchema = createInsertSchema(dailyPlans).pick({
-  weeklyPlanId: true,
-  dayOfWeek: true,
-  topic: true,
-  booksAndPages: true,
-  homework: true,
-  homeworkDueDate: true,
-  assignments: true,
-  notes: true,
-});
+// Create a more robust schema for daily plans with proper validation
+export const insertDailyPlanSchema = createInsertSchema(dailyPlans)
+  .pick({
+    weeklyPlanId: true,
+    dayOfWeek: true,
+    topic: true,
+    booksAndPages: true,
+    homework: true,
+    homeworkDueDate: true,
+    assignments: true,
+    notes: true,
+  })
+  .extend({
+    // Ensure topic is always provided and has a reasonable length
+    topic: z.string().min(1, "Topic is required").max(500, "Topic is too long"),
+    // Make all other fields truly optional with empty string fallbacks
+    booksAndPages: z.string().optional().nullable().transform(v => v || ""),
+    homework: z.string().optional().nullable().transform(v => v || ""),
+    homeworkDueDate: z.string().optional().nullable().transform(v => v || ""),
+    assignments: z.string().optional().nullable().transform(v => v || ""),
+    notes: z.string().optional().nullable().transform(v => v || ""),
+  });
 
 // Export types
 export type InsertUser = z.infer<typeof insertUserSchema>;

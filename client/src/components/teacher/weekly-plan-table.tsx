@@ -107,24 +107,102 @@ export default function WeeklyPlanTable({
 
     const dailyPlan = getDailyPlanByDayNumber(weeklyPlanData.dailyPlans, editingPlan.dayOfWeek);
     
-    // Prepare data with all fields from existing daily plan
-    const planData: any = {
-      weeklyPlanId: weeklyPlanData.weeklyPlan.id,
-      dayOfWeek: editingPlan.dayOfWeek,
-      topic: dailyPlan?.topic || "",
-      booksAndPages: dailyPlan?.booksAndPages || "",
-      homework: dailyPlan?.homework || "",
-      homeworkDueDate: dailyPlan?.homeworkDueDate || "",
-      assignments: dailyPlan?.assignments || "",
-      notes: dailyPlan?.notes || ""
-    };
+    // Validate that topic is not empty before saving
+    if (editingPlan.field === 'topic' && !editingPlan.value.trim()) {
+      toast({
+        title: "Error",
+        description: "Topic cannot be empty",
+        variant: "destructive",
+      });
+      return;
+    }
     
-    // Update the specific field being edited
-    planData[editingPlan.field] = editingPlan.value;
+    // Create a properly typed data object
+    let finalData;
+    
+    if (editingPlan.field === 'topic') {
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: editingPlan.value,
+        booksAndPages: dailyPlan?.booksAndPages || "",
+        homework: dailyPlan?.homework || "",
+        homeworkDueDate: dailyPlan?.homeworkDueDate || "",
+        assignments: dailyPlan?.assignments || "",
+        notes: dailyPlan?.notes || ""
+      };
+    } else if (editingPlan.field === 'booksAndPages') {
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: dailyPlan?.topic || "Untitled",
+        booksAndPages: editingPlan.value,
+        homework: dailyPlan?.homework || "",
+        homeworkDueDate: dailyPlan?.homeworkDueDate || "",
+        assignments: dailyPlan?.assignments || "",
+        notes: dailyPlan?.notes || ""
+      };
+    } else if (editingPlan.field === 'homework') {
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: dailyPlan?.topic || "Untitled",
+        booksAndPages: dailyPlan?.booksAndPages || "",
+        homework: editingPlan.value,
+        homeworkDueDate: dailyPlan?.homeworkDueDate || "",
+        assignments: dailyPlan?.assignments || "",
+        notes: dailyPlan?.notes || ""
+      };
+    } else if (editingPlan.field === 'homeworkDueDate') {
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: dailyPlan?.topic || "Untitled",
+        booksAndPages: dailyPlan?.booksAndPages || "",
+        homework: dailyPlan?.homework || "",
+        homeworkDueDate: editingPlan.value,
+        assignments: dailyPlan?.assignments || "",
+        notes: dailyPlan?.notes || ""
+      };
+    } else if (editingPlan.field === 'assignments') {
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: dailyPlan?.topic || "Untitled",
+        booksAndPages: dailyPlan?.booksAndPages || "",
+        homework: dailyPlan?.homework || "",
+        homeworkDueDate: dailyPlan?.homeworkDueDate || "",
+        assignments: editingPlan.value,
+        notes: dailyPlan?.notes || ""
+      };
+    } else if (editingPlan.field === 'notes') {
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: dailyPlan?.topic || "Untitled",
+        booksAndPages: dailyPlan?.booksAndPages || "",
+        homework: dailyPlan?.homework || "",
+        homeworkDueDate: dailyPlan?.homeworkDueDate || "",
+        assignments: dailyPlan?.assignments || "",
+        notes: editingPlan.value
+      };
+    } else {
+      // Fallback (should never happen)
+      finalData = {
+        weeklyPlanId: weeklyPlanData.weeklyPlan.id,
+        dayOfWeek: editingPlan.dayOfWeek,
+        topic: dailyPlan?.topic || "Untitled",
+        booksAndPages: dailyPlan?.booksAndPages || "",
+        homework: dailyPlan?.homework || "",
+        homeworkDueDate: dailyPlan?.homeworkDueDate || "",
+        assignments: dailyPlan?.assignments || "",
+        notes: dailyPlan?.notes || ""
+      };
+    }
     
     saveDailyPlan.mutate({ 
       id: dailyPlan?.id, 
-      data: planData 
+      data: finalData 
     });
   };
 
