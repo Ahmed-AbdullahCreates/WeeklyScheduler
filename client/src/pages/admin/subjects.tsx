@@ -127,11 +127,17 @@ export default function AdminSubjects() {
   
   return (
     <PageWrapper title="Subjects">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Manage Subjects</h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
+          Manage Subjects
+        </h1>
+        <p className="text-neutral-600 mt-2">Add, edit, and delete academic subjects for your school</p>
+      </div>
+      
+      <div className="mb-6 flex justify-end items-center">
         <Dialog open={isAddDialogOpen} onOpenChange={setIsAddDialogOpen}>
           <DialogTrigger asChild>
-            <Button>
+            <Button className="bg-primary hover:bg-primary/90">
               <Plus className="mr-2 h-4 w-4" /> Add Subject
             </Button>
           </DialogTrigger>
@@ -168,8 +174,8 @@ export default function AdminSubjects() {
         </Dialog>
       </div>
       
-      <Card>
-        <CardHeader>
+      <Card className="shadow-md border-primary/10">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
           <CardTitle>Subject List</CardTitle>
         </CardHeader>
         <CardContent>
@@ -184,14 +190,14 @@ export default function AdminSubjects() {
           ) : (
             <Table>
               <TableHeader>
-                <TableRow>
+                <TableRow className="bg-muted/30 hover:bg-muted/40">
                   <TableHead>Name</TableHead>
                   <TableHead className="w-[200px]">Actions</TableHead>
                 </TableRow>
               </TableHeader>
               <TableBody>
-                {subjects.map(subject => (
-                  <TableRow key={subject.id}>
+                {subjects.map((subject, index) => (
+                  <TableRow key={subject.id} className={index % 2 === 0 ? "bg-white" : "bg-primary/5"}>
                     <TableCell className="font-medium">{subject.name}</TableCell>
                     <TableCell>
                       <div className="flex space-x-2">
@@ -199,6 +205,7 @@ export default function AdminSubjects() {
                           variant="outline" 
                           size="sm"
                           onClick={() => handleEdit(subject)}
+                          className="border-primary text-primary hover:bg-primary/10"
                         >
                           <Edit className="h-4 w-4 mr-1" /> Edit
                         </Button>
@@ -207,7 +214,7 @@ export default function AdminSubjects() {
                             <Button 
                               variant="outline" 
                               size="sm"
-                              className="text-destructive hover:text-destructive border-destructive hover:border-destructive hover:bg-destructive/10"
+                              className="border-destructive text-destructive hover:bg-destructive/10"
                             >
                               <Trash2 className="h-4 w-4 mr-1" /> Delete
                             </Button>

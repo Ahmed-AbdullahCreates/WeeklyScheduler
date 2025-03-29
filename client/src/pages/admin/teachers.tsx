@@ -228,12 +228,18 @@ export default function AdminTeachers() {
   
   return (
     <PageWrapper title="Teachers">
-      <div className="mb-6 flex justify-between items-center">
-        <h1 className="text-2xl font-bold">Manage Teachers</h1>
+      <div className="mb-6">
+        <h1 className="text-3xl font-bold bg-gradient-to-r from-primary to-primary/70 text-transparent bg-clip-text">
+          Manage Teachers
+        </h1>
+        <p className="text-neutral-600 mt-2">Add, edit, and manage teacher accounts and their assignments</p>
+      </div>
+      
+      <div className="mb-6 flex flex-col sm:flex-row justify-end items-start sm:items-center gap-3">
         <div className="flex space-x-2">
           <Dialog open={isAddTeacherOpen} onOpenChange={setIsAddTeacherOpen}>
             <DialogTrigger asChild>
-              <Button>
+              <Button className="bg-primary hover:bg-primary/90">
                 <UserPlus className="mr-2 h-4 w-4" /> Add Teacher
               </Button>
             </DialogTrigger>
@@ -319,7 +325,7 @@ export default function AdminTeachers() {
           
           <Dialog>
             <DialogTrigger asChild>
-              <Button variant="outline">
+              <Button variant="outline" className="border-primary text-primary hover:bg-primary/10">
                 <Upload className="mr-2 h-4 w-4" /> Import Users
               </Button>
             </DialogTrigger>
@@ -336,160 +342,153 @@ export default function AdminTeachers() {
         </div>
       </div>
       
-      <Card>
-        <CardHeader>
+      <Card className="shadow-md border-primary/10">
+        <CardHeader className="bg-gradient-to-r from-primary/5 to-transparent border-b">
           <CardTitle>Teacher List</CardTitle>
         </CardHeader>
-        <CardContent>
-          <Table>
-            <TableHeader>
-              <TableRow>
-                <TableHead>Name</TableHead>
-                <TableHead>Username</TableHead>
-                <TableHead>Role</TableHead>
-                <TableHead>Assigned Grades</TableHead>
-                <TableHead>Actions</TableHead>
-              </TableRow>
-            </TableHeader>
-            <TableBody>
-              {teachers.map(teacher => (
-                <TableRow key={teacher.id}>
-                  <TableCell className="font-medium">{teacher.fullName}</TableCell>
-                  <TableCell>{teacher.username}</TableCell>
-                  <TableCell>
-                    <Badge variant={teacher.isAdmin ? "default" : "outline"}>
-                      {teacher.isAdmin ? "Admin" : "Teacher"}
-                    </Badge>
-                  </TableCell>
-                  <TableCell>
-                    {/* Enhanced teacher grades display with prefetched data */}
-                    <div className="flex flex-wrap gap-1">
-                      {teacher.id === selectedTeacher?.id ? (
-                        // This teacher is selected, show their grades from the query
-                        teacherGrades.length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {teacherGrades.map(grade => (
-                              <Badge key={grade.id} variant="outline" className="mr-1">
-                                {grade.name}
-                              </Badge>
-                            ))}
-                          </div>
+        <CardContent className="p-0">
+          {isLoadingTeachers ? (
+            <div className="flex justify-center p-6">
+              <div className="animate-spin h-8 w-8 border-4 border-primary border-t-transparent rounded-full"></div>
+            </div>
+          ) : (
+            <Table>
+              <TableHeader>
+                <TableRow>
+                  <TableHead>Name</TableHead>
+                  <TableHead>Username</TableHead>
+                  <TableHead>Role</TableHead>
+                  <TableHead>Assigned Grades</TableHead>
+                  <TableHead>Actions</TableHead>
+                </TableRow>
+              </TableHeader>
+              <TableBody>
+                {teachers.map(teacher => (
+                  <TableRow key={teacher.id} className="hover:bg-muted/30">
+                    <TableCell className="font-medium">{teacher.fullName}</TableCell>
+                    <TableCell>{teacher.username}</TableCell>
+                    <TableCell>
+                      <Badge variant={teacher.isAdmin ? "default" : "outline"}>
+                        {teacher.isAdmin ? "Admin" : "Teacher"}
+                      </Badge>
+                    </TableCell>
+                    <TableCell>
+                      {/* Enhanced teacher grades display with prefetched data */}
+                      <div className="flex flex-wrap gap-1">
+                        {teacher.id === selectedTeacher?.id ? (
+                          // This teacher is selected, show their grades from the query
+                          teacherGrades.length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {teacherGrades.map(grade => (
+                                <Badge key={grade.id} variant="outline" className="mr-1">
+                                  {grade.name}
+                                </Badge>
+                              ))}
+                              {/* Removed Edit button that was here */}
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-muted-foreground italic">No grades assigned</span>
+                              {/* Removed "+ Assign" button that was here */}
+                            </div>
+                          )
+                        ) : teacherGradesMap[teacher.id] ? (
+                          // This teacher has prefetched grades, show them directly
+                          teacherGradesMap[teacher.id].length > 0 ? (
+                            <div className="flex flex-wrap gap-1">
+                              {teacherGradesMap[teacher.id].map(grade => (
+                                <Badge key={grade.id} variant="outline" className="mr-1">
+                                  {grade.name}
+                                </Badge>
+                              ))}
+                            </div>
+                          ) : (
+                            <div className="flex items-center space-x-2">
+                              <span className="text-xs text-muted-foreground italic">No Grades Assigned</span>
+                            </div>
+                          )
                         ) : (
-                          <span className="text-xs text-muted-foreground italic">No grades assigned</span>
-                        )
-                      ) : teacherGradesMap[teacher.id] ? (
-                        // This teacher has prefetched grades, show them directly
-                        teacherGradesMap[teacher.id].length > 0 ? (
-                          <div className="flex flex-wrap gap-1">
-                            {teacherGradesMap[teacher.id].map(grade => (
-                              <Badge key={grade.id} variant="outline" className="mr-1">
-                                {grade.name}
-                              </Badge>
-                            ))}
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-6 text-xs"
-                              onClick={() => setSelectedTeacher(teacher)}
-                              title="Manage assignments"
-                            >
-                              <Pencil className="h-3 w-3 mr-1" />
-                              Edit
-                            </Button>
-                          </div>
-                        ) : (
-                          <div className="flex items-center space-x-2">
-                            <span className="text-xs text-muted-foreground italic">None</span>
-                            <Button 
-                              variant="ghost" 
-                              size="sm" 
-                              className="h-6 text-xs"
-                              onClick={() => setSelectedTeacher(teacher)}
-                              title="Manage assignments"
-                            >
-                              <Plus className="h-3 w-3 mr-1" />
-                              Assign
-                            </Button>
-                          </div>
-                        )
-                      ) : (
-                        // Data is being loaded or hasn't been prefetched yet
-                        <Button 
-                          variant="ghost" 
-                          size="sm" 
-                          className="h-6 text-xs"
-                          onClick={() => {
-                            // Fetch teacher grades using the API
-                            fetch(`/api/teacher-grades/${teacher.id}`)
-                              .then(res => res.json())
-                              .then(grades => {
-                                // Store in the local map for quick access
-                                setTeacherGradesMap(prev => ({
-                                  ...prev,
-                                  [teacher.id]: grades
-                                }));
-                                // Set the selected teacher
-                                setSelectedTeacher(teacher);
-                              })
-                              .catch(error => {
-                                toast({
-                                  title: "Error",
-                                  description: "Failed to fetch teacher grades",
-                                  variant: "destructive",
+                          // Data is being loaded or hasn't been prefetched yet
+                          <Button 
+                            variant="ghost" 
+                            size="sm" 
+                            className="h-6 text-xs"
+                            onClick={() => {
+                              // Fetch teacher grades using the API
+                              fetch(`/api/teacher-grades/${teacher.id}`)
+                                .then(res => res.json())
+                                .then(grades => {
+                                  // Store in the local map for quick access
+                                  setTeacherGradesMap(prev => ({
+                                    ...prev,
+                                    [teacher.id]: grades
+                                  }));
+                                  // Set the selected teacher
+                                  setSelectedTeacher(teacher);
+                                })
+                                .catch(error => {
+                                  toast({
+                                    title: "Error",
+                                    description: "Failed to fetch teacher grades",
+                                    variant: "destructive",
+                                  });
                                 });
-                              });
-                          }}
-                        >
-                          View Assignments
-                        </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                  <TableCell>
-                    <div className="flex space-x-2">
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTeacher(teacher);
-                          setIsAssignGradeOpen(true);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Grade
-                      </Button>
-                      <Button 
-                        variant="outline" 
-                        size="sm"
-                        onClick={() => {
-                          setSelectedTeacher(teacher);
-                          setIsAssignSubjectOpen(true);
-                        }}
-                      >
-                        <Plus className="h-3.5 w-3.5 mr-1" />
-                        Subject
-                      </Button>
-                      
-                      {/* Delete User */}
-                      {teacher.id !== currentUser?.id && (
-                        <Button
-                          variant="destructive"
+                            }}
+                          >
+                            View Assignments
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                    <TableCell>
+                      <div className="flex space-x-2">
+                        <Button 
+                          variant="outline" 
                           size="sm"
                           onClick={() => {
                             setSelectedTeacher(teacher);
-                            setIsDeleteConfirmOpen(true);
+                            setIsAssignGradeOpen(true);
                           }}
-                          title="Delete user"
+                          className="border-primary text-primary hover:bg-primary/10"
                         >
-                          <Trash2 className="h-3.5 w-3.5" />
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Grade
                         </Button>
-                      )}
-                    </div>
-                  </TableCell>
-                </TableRow>
-              ))}
-            </TableBody>
-          </Table>
+                        <Button 
+                          variant="outline" 
+                          size="sm"
+                          onClick={() => {
+                            setSelectedTeacher(teacher);
+                            setIsAssignSubjectOpen(true);
+                          }}
+                          className="border-primary text-primary hover:bg-primary/10"
+                        >
+                          <Plus className="h-3.5 w-3.5 mr-1" />
+                          Subject
+                        </Button>
+                        
+                        {/* Delete User */}
+                        {teacher.id !== currentUser?.id && (
+                          <Button
+                            variant="outline"
+                            size="sm"
+                            onClick={() => {
+                              setSelectedTeacher(teacher);
+                              setIsDeleteConfirmOpen(true);
+                            }}
+                            className="border-destructive text-destructive hover:bg-destructive/10"
+                            title="Delete user"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
+                        )}
+                      </div>
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          )}
         </CardContent>
       </Card>
       
